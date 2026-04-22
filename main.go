@@ -1,9 +1,14 @@
 package main
 
 import (
+	"flag"
+	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/iucario/danmu-go/api"
 	"github.com/iucario/danmu-go/config"
@@ -12,18 +17,64 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})))
+	configPath := flag.String("config", filepath.Join("data", "config.ini"),
+		"path to config file (created with defaults if missing)")
+	flag.Parse()
 
-	cfg := config.Default()
+	// Set up logging to stderr + a log file before anything else.
+	logFile := openLogFile()
+	if logFile != nil {
+		defer func() { _ = logFile.Close() }()
+	}
+
+	// Load (or create) config.
+	cfg, err := config.Load(*configPath)
+	if err != nil {
+		slog.Error("failed to load config", "err", err, "path", *configPath)
+		os.Exit(1)
+	}
+	slog.Info("config loaded", "path", *configPath)
+
 	rm := chat.NewRoomManager()
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))
 
 	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
-		slog.Error("server error", "err", err)
+		slog.Error("server stopped with error", "err", err)
+		fmt.Fprintf(os.Stderr, "\nERROR: %v\n", err)
 		os.Exit(1)
 	}
+	slog.Info("goodbye")
+}
+
+// openLogFile creates (or appends to) danmu-go.log in the OS temp directory
+// and configures slog to write to both stderr and the file.
+// Returns the file so the caller can defer-close it; returns nil on failure.
+//
+// Temp directory locations:
+//   - Linux/macOS: /tmp
+//   - Windows:     %TEMP% (e.g. C:\Users\<user>\AppData\Local\Temp)
+func openLogFile() *os.File {
+	logPath := filepath.Join(os.TempDir(), "danmu-go.log")
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		slog.Warn("could not open log file", "path", logPath, "err", err)
+		return nil
+	}
+
+	w := io.MultiWriter(os.Stderr, f)
+	slog.SetDefault(slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			// Format timestamps as human-readable local time.
+			if a.Key == slog.TimeKey {
+				a.Value = slog.StringValue(time.Now().Format("2006-01-02 15:04:05"))
+			}
+			return a
+		},
+	})))
+
+	slog.Info("logging to file", "path", logPath)
+	return f
 }

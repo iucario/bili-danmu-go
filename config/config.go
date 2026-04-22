@@ -1,15 +1,61 @@
 package config
 
-// Config holds server configuration. Populated from flags or defaults.
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+
+	"gopkg.in/ini.v1"
+)
+
+// Config holds all runtime settings.
 type Config struct {
 	Host string
 	Port int
 }
 
-// Default returns a Config with sensible defaults.
+// Default returns safe defaults used when no config file exists.
 func Default() *Config {
 	return &Config{
 		Host: "127.0.0.1",
 		Port: 12450,
 	}
+}
+
+// defaultINI is written to disk on first run so users have something to edit.
+const defaultINI = `[server]
+; Listening address.
+;   127.0.0.1  — only this computer can connect (default, recommended)
+;   0.0.0.0    — allow other devices on your local network
+host = 127.0.0.1
+
+; Port number. Change this if 12450 is already in use on your system.
+port = 12450
+`
+
+// Load reads config from path.
+// If the file does not exist it is created with defaults and those defaults
+// are returned. A parse error returns nil and the error.
+func Load(path string) (*Config, error) {
+	cfg := Default()
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return cfg, fmt.Errorf("create config directory: %w", err)
+		}
+		if err := os.WriteFile(path, []byte(defaultINI), 0o644); err != nil {
+			return cfg, fmt.Errorf("write default config: %w", err)
+		}
+		return cfg, nil
+	}
+
+	f, err := ini.Load(path)
+	if err != nil {
+		return nil, fmt.Errorf("parse config %q: %w", path, err)
+	}
+
+	s := f.Section("server")
+	cfg.Host = s.Key("host").MustString(cfg.Host)
+	cfg.Port = s.Key("port").MustInt(cfg.Port)
+	return cfg, nil
 }
