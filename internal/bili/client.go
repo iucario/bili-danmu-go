@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"path"
 	"sort"
@@ -21,6 +22,31 @@ import (
 
 // ErrTooManyRetries is returned after 30 consecutive reconnect failures.
 var ErrTooManyRetries = errors.New("too many retries connecting to Bilibili")
+
+// biliUserAgent must be consistent across all API calls and the WS handshake
+// because Bilibili binds the danmu token to the User-Agent it was issued for.
+const biliUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" +
+	" (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+
+// sharedJar and sharedHTTPClient are shared across all BLiveClient instances so
+// that the buvid3 cookie (and any login cookies) obtained by one room's init
+// sequence are reused by all rooms, matching blivechat's single-session design.
+var (
+	sharedJarOnce sync.Once
+	sharedJar     http.CookieJar
+	sharedHC      *http.Client
+	sharedWBI     *wbiSigner
+)
+
+func getShared() (http.CookieJar, *http.Client, *wbiSigner) {
+	sharedJarOnce.Do(func() {
+		jar, _ := cookiejar.New(nil)
+		sharedJar = jar
+		sharedHC = &http.Client{Jar: jar, Timeout: 15 * time.Second}
+		sharedWBI = newWbiSigner(sharedHC)
+	})
+	return sharedJar, sharedHC, sharedWBI
+}
 
 // wbiKeyIndexTable is the shuffle permutation used for WBI signing.
 var wbiKeyIndexTable = []int{
@@ -158,6 +184,10 @@ type BLiveClient struct {
 	roomID  int64 // user-supplied room ID (may be short ID)
 	handler HandlerInterface
 
+	// OnConnect is called once per successful connection, after the real
+	// room ID and owner UID are resolved. May be called multiple times on reconnect.
+	OnConnect func(realRoomID, ownerUID int64)
+
 	hc     *http.Client
 	wbi    *wbiSigner
 	jar    http.CookieJar
@@ -168,13 +198,12 @@ type BLiveClient struct {
 // NewBLiveClient creates a client for the given room ID.
 // handler receives decoded business messages.
 func NewBLiveClient(roomID int64, handler HandlerInterface) *BLiveClient {
-	jar, _ := newCookieJar()
-	hc := &http.Client{Jar: jar, Timeout: 15 * time.Second}
+	jar, hc, wbi := getShared()
 	return &BLiveClient{
 		roomID:  roomID,
 		handler: handler,
 		hc:      hc,
-		wbi:     newWbiSigner(hc),
+		wbi:     wbi,
 		jar:     jar,
 		stopCh:  make(chan struct{}),
 	}
@@ -246,6 +275,10 @@ func (c *BLiveClient) connect() error {
 		return fmt.Errorf("getRoomInfo: %w", err)
 	}
 
+	if c.OnConnect != nil {
+		c.OnConnect(realRoomID, ownerUID)
+	}
+
 	// Step 3: WBI-signed getDanmuInfo
 	hosts, token, err := c.getDanmuInfo(realRoomID)
 	if err != nil {
@@ -255,19 +288,22 @@ func (c *BLiveClient) connect() error {
 		return fmt.Errorf("no danmu host returned")
 	}
 
-	// Step 4: WSS connect
+	// Step 4: WSS connect — User-Agent must match the one used to fetch the danmu token
+	// (Bilibili signs the token with the UA).
 	wsURL := fmt.Sprintf("wss://%s:%d/sub", hosts[0].Host, hosts[0].WssPort)
+	wsHeader := http.Header{"User-Agent": {biliUserAgent}}
 	dialer := websocket.Dialer{HandshakeTimeout: 10 * time.Second}
-	conn, _, err := dialer.Dial(wsURL, nil)
+	conn, _, err := dialer.Dial(wsURL, wsHeader)
 	if err != nil {
 		return fmt.Errorf("wss dial %s: %w", wsURL, err)
 	}
 	defer func() { _ = conn.Close() }()
 
-	// Step 4b: send AUTH frame
+	// Step 4b: send AUTH frame.
+	// uid is the *viewer's* UID (0 = anonymous); ownerUID is the room owner's UID.
 	buvid3 := c.getBuvid3()
 	authBody, _ := json.Marshal(map[string]any{
-		"uid":      ownerUID,
+		"uid":      0,
 		"roomid":   realRoomID,
 		"protover": 3,
 		"platform": "web",
@@ -284,18 +320,19 @@ func (c *BLiveClient) connect() error {
 		return fmt.Errorf("auth reply: %w", err)
 	}
 
-	// Step 5: heartbeat goroutine
-	hbDone := make(chan struct{})
+	// Step 5: heartbeat goroutine — hbStop is closed when connect() returns,
+	// stopping the goroutine regardless of whether it was a clean or error exit.
+	hbStop := make(chan struct{})
+	defer close(hbStop)
 	go func() {
-		defer close(hbDone)
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()
 		hbFrame := EncodeFrame(OpHeartbeat, VerHeartbeat, []byte("{}"))
 		for {
 			select {
-			case <-c.stopCh:
+			case <-hbStop:
 				return
-			case <-hbDone:
+			case <-c.stopCh:
 				return
 			case <-ticker.C:
 				if err := conn.WriteMessage(websocket.BinaryMessage, hbFrame); err != nil {
@@ -382,7 +419,8 @@ func (c *BLiveClient) fetchBuvid() error {
 	if err != nil {
 		return err
 	}
-	resp.Body.Close() //nolint:errcheck // best-effort close, response already consumed
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
 	return nil
 }
 
@@ -457,15 +495,7 @@ func (c *BLiveClient) getDanmuInfo(realRoomID int64) ([]hostEntry, string, error
 }
 
 func setBiliHeaders(req *http.Request) {
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "+
-		"AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", biliUserAgent)
 	req.Header.Set("Referer", "https://www.bilibili.com/")
 	req.Header.Set("Origin", "https://www.bilibili.com")
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
