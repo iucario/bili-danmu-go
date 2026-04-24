@@ -137,29 +137,9 @@
 		word-break: break-word;
 	}
 
-	/* Color themes — defined globally so scColorClass() works */
-	:global(.sc-blue) {
-		background: rgba(13, 71, 161, 0.88);
-		color: #e3f2fd;
-	}
-	:global(.sc-teal) {
-		background: rgba(0, 77, 64, 0.88);
-		color: #e0f2f1;
-	}
-	:global(.sc-green) {
-		background: rgba(27, 94, 32, 0.88);
-		color: #e8f5e9;
-	}
-	:global(.sc-yellow) {
-		background: rgba(130, 77, 0, 0.88);
-		color: #fff8e1;
-	}
-	:global(.sc-orange) {
-		background: rgba(191, 54, 12, 0.88);
-		color: #fff3e0;
-	}
-	:global(.sc-red) {
-		background: rgba(183, 28, 28, 0.88);
-		color: #ffebee;
+	/* Color themes live in layout.css — .sc-card reads --sc-bg / --sc-color from the tier class */
+	.sc-card {
+		background: var(--sc-bg, rgba(13, 71, 161, 0.88));
+		color: var(--sc-color, #e3f2fd);
 	}
 </style>

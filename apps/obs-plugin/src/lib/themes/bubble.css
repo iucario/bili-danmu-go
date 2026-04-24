@@ -1,0 +1,61 @@
+/*
+ * Bubble theme — semi-transparent dark cards, coloured badge pills.
+ * Classic chat overlay look.
+ */
+.theme-bubble {
+	--font-family: 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+	--font-size: 20px;
+
+	--row-bg: rgba(0, 0, 0, 0.55);
+	--row-radius: 6px;
+	--row-padding: 4px 8px;
+	--row-gap: 4px;
+
+	--text-shadow: none;
+
+	--author-color: rgba(255, 255, 255, 0.85);
+	--sep-color: rgba(255, 255, 255, 0.5);
+	--msg-color: rgba(255, 255, 255, 0.93);
+
+	/* Badge as coloured pill */
+	--badge-bg-owner: #e91e63;
+	--badge-bg-admin: #ff9800;
+	--badge-bg-guard1: #9c27b0;
+	--badge-bg-guard2: #3f51b5;
+	--badge-bg-guard3: #2196f3;
+	--badge-color-owner: #fff;
+	--badge-color-admin: #fff;
+	--badge-color-guard1: #fff;
+	--badge-color-guard2: #fff;
+	--badge-color-guard3: #fff;
+	--badge-padding: 1px 6px;
+	--badge-radius: 4px;
+	--badge-font-size: 0.78em;
+
+	/* Medal pill */
+	--medal-bg: rgba(255, 255, 255, 0.15);
+	--medal-color: rgba(255, 255, 255, 0.8);
+	--medal-font-size: 0.78em;
+	--medal-padding: 1px 5px;
+	--medal-radius: 4px;
+
+	/* SC row */
+	--sc-row-border: 3px solid currentColor;
+	--sc-row-padding: var(--row-padding);
+	--sc-row-radius: var(--row-radius);
+	--sc-text-shadow: none;
+
+	/* SC tier colors — override to customise per price level */
+	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;
+	--sc-100-bg:  rgba(0,   77,   64, 0.88); --sc-100-color:  #e0f2f1;
+	--sc-200-bg:  rgba(27,  94,   32, 0.88); --sc-200-color:  #e8f5e9;
+	--sc-500-bg:  rgba(180, 140,   0, 0.88); --sc-500-color:  #fff9c4;
+	--sc-1000-bg: rgba(191,  54,  12, 0.88); --sc-1000-color: #fff3e0;
+	--sc-2000-bg: rgba(183,  28,  28, 0.88); --sc-2000-color: #ffebee;
+}
+
+/* No brackets in bubble mode */
+.theme-bubble .badge::before,
+.theme-bubble .badge::after {
+	content: '';
+}

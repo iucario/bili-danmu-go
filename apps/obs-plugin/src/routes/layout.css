@@ -1,5 +1,16 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+@import '$lib/themes/plain.css';
+@import '$lib/themes/bubble.css';
+
+/* SC tier classes — bridge from price class to --sc-bg/--sc-color used by components.
+   Actual colors defined per theme in themes/plain.css, themes/bubble.css etc. */
+.sc-30   { --sc-bg: var(--sc-30-bg);   --sc-color: var(--sc-30-color);   }
+.sc-100  { --sc-bg: var(--sc-100-bg);  --sc-color: var(--sc-100-color);  }
+.sc-200  { --sc-bg: var(--sc-200-bg);  --sc-color: var(--sc-200-color);  }
+.sc-500  { --sc-bg: var(--sc-500-bg);  --sc-color: var(--sc-500-color);  }
+.sc-1000 { --sc-bg: var(--sc-1000-bg); --sc-color: var(--sc-1000-color); }
+.sc-2000 { --sc-bg: var(--sc-2000-bg); --sc-color: var(--sc-2000-color); }
 
 html,
 body {

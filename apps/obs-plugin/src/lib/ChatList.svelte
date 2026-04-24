@@ -7,16 +7,14 @@
 
 	let listEl = $state<HTMLElement | null>(null);
 
-	// Auto-scroll to bottom whenever items change
 	$effect(() => {
-		// Touch items to subscribe
 		items.length;
 		tick().then(() => {
 			if (listEl) listEl.scrollTop = listEl.scrollHeight;
 		});
 	});
 
-	function authorLabel(authorType: number, privilegeType: number): string {
+	function badge(authorType: number, privilegeType: number): string {
 		if (authorType === 3) return '主播';
 		if (authorType === 2) return '管理';
 		if (privilegeType === 1) return '总督';
@@ -25,12 +23,12 @@
 		return '';
 	}
 
-	function authorLabelClass(authorType: number, privilegeType: number): string {
-		if (authorType === 3) return 'badge-owner';
-		if (authorType === 2) return 'badge-admin';
-		if (privilegeType === 1) return 'badge-guard1';
-		if (privilegeType === 2) return 'badge-guard2';
-		if (privilegeType === 3) return 'badge-guard3';
+	function badgeClass(authorType: number, privilegeType: number): string {
+		if (authorType === 3) return 'owner';
+		if (authorType === 2) return 'admin';
+		if (privilegeType === 1) return 'guard1';
+		if (privilegeType === 2) return 'guard2';
+		if (privilegeType === 3) return 'guard3';
 		return '';
 	}
 </script>
@@ -38,35 +36,20 @@
 <div class="chat-list" bind:this={listEl}>
 	{#each items as item (item.data.id)}
 		{#if item.kind === 'text'}
-			{@const label = authorLabel(item.data.authorType, item.data.privilegeType)}
-			<div class="chat-item">
-				{#if label}
-					<span class="badge {authorLabelClass(item.data.authorType, item.data.privilegeType)}"
-						>{label}</span
-					>
+			{@const lbl = badge(item.data.authorType, item.data.privilegeType)}
+			<div class="row">
+				{#if lbl}
+					<span class="badge {badgeClass(item.data.authorType, item.data.privilegeType)}">{lbl}</span>
 				{/if}
 				{#if item.data.medalName && item.data.medalLevel}
-					<span class="medal">{item.data.medalName} {item.data.medalLevel}</span>
+					<span class="medal">{item.data.medalName}&nbsp;{item.data.medalLevel}</span>
 				{/if}
-				<span class="author">{item.data.authorName}</span>
-				<span class="colon">:</span>
-				{#if item.data.contentType === 1}
-					<!-- emoticon -->
-					<img
-						class="emoticon"
-						src={item.data.contentTypeParams['url']}
-						alt={item.data.content}
-					/>
-				{:else}
-					<span class="content">{item.data.content}</span>
-				{/if}
+				<span class="author">{item.data.authorName}</span><span class="sep">: </span>{#if item.data.contentType === 1}<img class="emoticon" src={item.data.contentTypeParams['url']} alt={item.data.content} />{:else}<span class="msg">{item.data.content}</span>{/if}
 			</div>
 		{:else if item.kind === 'superchat'}
-			<div class="chat-item sc-item {scColorClass(item.data.price)}">
+			<div class="row sc-row {scColorClass(item.data.price)}">
 				<span class="sc-price">¥{item.data.price}</span>
-				<span class="author">{item.data.authorName}</span>
-				<span class="colon">:</span>
-				<span class="content">{item.data.content}</span>
+				<span class="author">{item.data.authorName}</span><span class="sep">: </span><span class="msg">{item.data.content}</span>
 			</div>
 		{/if}
 	{/each}
@@ -79,39 +62,51 @@
 		overflow-y: auto;
 		overflow-x: hidden;
 		flex: 1;
-		gap: 4px;
-		padding: 6px 8px;
+		gap: 2px;
+		padding: 6px 10px;
 		scrollbar-width: none;
+		font-family: var(--font-family, system-ui, sans-serif);
+		font-size: var(--font-size, 15px);
 	}
 	.chat-list::-webkit-scrollbar {
 		display: none;
 	}
 
-	.chat-item {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 4px;
-		padding: 4px 8px;
-		border-radius: 6px;
-		background: rgba(0, 0, 0, 0.55);
-		font-size: 14px;
-		line-height: 1.4;
+	.row {
+		padding: var(--row-padding, 2px 0);
+		border-radius: var(--row-radius, 0px);
+		background: var(--row-bg, transparent);
+		line-height: 1.5;
 		word-break: break-word;
+		text-shadow: var(--text-shadow, none);
+	}
+
+	/* All inline children flow together so long messages wrap after the username */
+	.row > :global(*) {
+		display: inline;
+	}
+
+	/* SC rows override padding/radius/shadow independently */
+	.sc-row {
+		padding: var(--sc-row-padding, var(--row-padding, 2px 0));
+		border-radius: var(--sc-row-radius, var(--row-radius, 0px));
+		border-left: var(--sc-row-border, none);
+		text-shadow: var(--sc-text-shadow, var(--text-shadow, none));
 	}
 
 	.author {
 		font-weight: 700;
-		color: #ffffffd9;
+		color: var(--author-color, #fff);
+		margin-right: var(--author-margin-right, 0px);
 	}
 
-	.colon {
-		color: #ffffff99;
-		margin-right: 2px;
+	.sep {
+		white-space: pre;
+		color: var(--sep-color, rgba(255, 255, 255, 0.7));
 	}
 
-	.content {
-		color: #ffffffee;
+	.msg {
+		color: var(--msg-color, #fff);
 	}
 
 	.emoticon {
@@ -121,72 +116,42 @@
 	}
 
 	.medal {
-		font-size: 11px;
-		padding: 1px 5px;
-		border-radius: 4px;
-		background: rgba(255, 255, 255, 0.15);
-		color: #ffffffcc;
+		font-size: var(--medal-font-size, 0.8em);
+		padding: var(--medal-padding, 0);
+		border-radius: var(--medal-radius, 0);
+		background: var(--medal-bg, transparent);
+		color: var(--medal-color, rgba(255, 255, 255, 0.65));
 	}
 
 	.badge {
-		font-size: 11px;
+		font-size: var(--badge-font-size, 0.82em);
 		font-weight: 700;
-		padding: 1px 5px;
-		border-radius: 4px;
+		padding: var(--badge-padding, 0);
+		border-radius: var(--badge-radius, 0);
+		margin-right: var(--badge-margin-right, 0px);
 	}
-	.badge-owner {
-		background: #e91e63;
-		color: #fff;
-	}
-	.badge-admin {
-		background: #ff9800;
-		color: #fff;
-	}
-	.badge-guard1 {
-		background: #9c27b0;
-		color: #fff;
-	}
-	.badge-guard2 {
-		background: #3f51b5;
-		color: #fff;
-	}
-	.badge-guard3 {
-		background: #2196f3;
-		color: #fff;
-	}
+	.badge.owner  { background: var(--badge-bg-owner,  transparent); color: var(--badge-color-owner,  #f48fb1); }
+	.badge.admin  { background: var(--badge-bg-admin,  transparent); color: var(--badge-color-admin,  #ffcc80); }
+	.badge.guard1 { background: var(--badge-bg-guard1, transparent); color: var(--badge-color-guard1, #ce93d8); }
+	.badge.guard2 { background: var(--badge-bg-guard2, transparent); color: var(--badge-color-guard2, #90caf9); }
+	.badge.guard3 { background: var(--badge-bg-guard3, transparent); color: var(--badge-color-guard3, #80deea); }
 
-	/* SC inline item colors */
-	.sc-item {
-		border-left: 3px solid currentColor;
-	}
 	.sc-price {
 		font-weight: 700;
-		font-size: 12px;
-		opacity: 0.9;
+		font-size: 0.85em;
+		margin-right: 4px;
 	}
 
-	:global(.sc-blue) {
-		background: rgba(13, 71, 161, 0.75);
-		color: #90caf9;
+	/* SC rows override padding/radius/shadow independently */
+	.sc-row {
+		padding: var(--sc-row-padding, var(--row-padding, 2px 0));
+		border-radius: var(--sc-row-radius, var(--row-radius, 0px));
+		border-left: var(--sc-row-border, none);
+		text-shadow: var(--sc-text-shadow, var(--text-shadow, none));
+		/* Read background/color from the SC tier class via custom properties */
+		background: var(--sc-bg, transparent);
+		color: var(--sc-color, inherit);
 	}
-	:global(.sc-teal) {
-		background: rgba(0, 77, 64, 0.75);
-		color: #80cbc4;
-	}
-	:global(.sc-green) {
-		background: rgba(27, 94, 32, 0.75);
-		color: #a5d6a7;
-	}
-	:global(.sc-yellow) {
-		background: rgba(130, 77, 0, 0.75);
-		color: #ffe082;
-	}
-	:global(.sc-orange) {
-		background: rgba(191, 54, 12, 0.75);
-		color: #ffcc80;
-	}
-	:global(.sc-red) {
-		background: rgba(183, 28, 28, 0.75);
-		color: #ef9a9a;
-	}
+
+	/* SC background/color come from --sc-bg/--sc-color set by .sc-30/.sc-100 etc. in layout.css */
 </style>

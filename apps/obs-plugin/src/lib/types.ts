@@ -47,12 +47,12 @@ export type ChatItem =
 	| { kind: 'text'; data: TextEvent }
 	| { kind: 'superchat'; data: SuperChatEvent };
 
-/** Returns Tailwind bg/text class pair for a SC price tier */
+/** Returns SC tier class based on price threshold */
 export function scColorClass(price: number): string {
-	if (price >= 2000) return 'sc-red';
-	if (price >= 1000) return 'sc-orange';
-	if (price >= 500) return 'sc-yellow';
-	if (price >= 200) return 'sc-green';
-	if (price >= 100) return 'sc-teal';
-	return 'sc-blue';
+	if (price >= 2000) return 'sc-2000';
+	if (price >= 1000) return 'sc-1000';
+	if (price >= 500)  return 'sc-500';
+	if (price >= 200)  return 'sc-200';
+	if (price >= 100)  return 'sc-100';
+	return 'sc-30';
 }

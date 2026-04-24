@@ -1,0 +1,73 @@
+/*
+ * Plain theme — no background, white text, dark outline shadow.
+ * Readable on any stream content without covering it.
+ * Format: authorName[badge]: message
+ */
+.theme-plain {
+	--font-family: 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+	--font-size: 18px;
+
+	--row-bg: transparent;
+	--row-radius: 0px;
+	--row-padding: 2px 0;
+	--row-gap: 2px;
+
+	/* Individual spacing between inline elements */
+	--badge-margin-right: 5px;
+	--author-margin-right: 3px;
+
+	--text-shadow:
+		-1px -1px 0 #454545,
+		1px -1px 0 #454545,
+		-1px 1px 0 #454545,
+		1px 1px 0 #454545,
+		0 2px 6px rgba(0, 0, 0, 0.85);
+
+	--author-color: #fff;
+	--sep-color: rgba(255, 255, 255, 0.7);
+	--msg-color: #fff;
+
+	/* Badge displayed as [text], no background */
+	--badge-bg-owner: transparent;
+	--badge-bg-admin: transparent;
+	--badge-bg-guard1: transparent;
+	--badge-bg-guard2: transparent;
+	--badge-bg-guard3: transparent;
+	--badge-color-owner: #f48fb1;
+	--badge-color-admin: #ffcc80;
+	--badge-color-guard1: #ce93d8;
+	--badge-color-guard2: #90caf9;
+	--badge-color-guard3: #80deea;
+	--badge-padding: 0;
+	--badge-radius: 0;
+	--badge-font-size: 0.82em;
+
+	/* Medal: just text, no pill */
+	--medal-bg: transparent;
+	--medal-color: rgba(255, 255, 255, 0.65);
+	--medal-font-size: 0.8em;
+	--medal-padding: 0;
+	--medal-radius: 0;
+
+	/* SC row: colored card with padding */
+	--sc-row-border: none;
+	--sc-row-padding: 4px 10px;
+	--sc-row-radius: 6px;
+	--sc-text-shadow: none; /* no outline on colored background */
+
+	/* SC tier colors — override to customise per price level */
+	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;
+	--sc-100-bg:  rgba(0,   77,   64, 0.88); --sc-100-color:  #e0f2f1;
+	--sc-200-bg:  rgba(27,  94,   32, 0.88); --sc-200-color:  #e8f5e9;
+	--sc-500-bg:  rgba(180, 140,   0, 0.88); --sc-500-color:  #fff9c4;
+	--sc-1000-bg: rgba(191,  54,  12, 0.88); --sc-1000-color: #fff3e0;
+	--sc-2000-bg: rgba(183,  28,  28, 0.88); --sc-2000-color: #ffebee;
+}
+
+/* [brackets] around badge label in plain mode */
+.theme-plain .badge::before {
+	content: '[';
+}
+.theme-plain .badge::after {
+	content: ']';
+}

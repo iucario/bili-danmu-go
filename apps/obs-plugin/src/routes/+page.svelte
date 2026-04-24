@@ -5,10 +5,12 @@
 	import SuperChatPin from '$lib/SuperChatPin.svelte';
 
 	let roomId = $state<number | null>(null);
+	let theme = $state('plain');
 	let store = $state<ReturnType<typeof createSSEStore> | null>(null);
 
 	onMount(() => {
 		const params = new URLSearchParams(window.location.search);
+		theme = params.get('theme') ?? 'plain';
 		const id = parseInt(params.get('roomId') ?? '', 10);
 		if (!isNaN(id) && id > 0) {
 			roomId = id;
@@ -17,14 +19,14 @@
 		}
 	});
 
-	onDestroy(() => {
-		store?.disconnect();
-	});
+	onDestroy(() => store?.disconnect());
 </script>
 
-<div class="overlay">
+<div class="overlay theme-{theme}">
 	{#if roomId === null}
-		<div class="center-hint">Add <code>?roomId=12345</code> to the URL</div>
+		<div class="center-hint">
+			Add <code>?roomId=12345</code> to the URL.
+		</div>
 	{:else if store}
 		<SuperChatPin superchats={store.pinnedSCs} />
 		<ChatList items={store.chatItems} />
