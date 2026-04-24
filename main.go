@@ -12,6 +12,7 @@ import (
 
 	"github.com/iucario/danmu-go/api"
 	"github.com/iucario/danmu-go/config"
+	"github.com/iucario/danmu-go/internal/appconfig"
 	"github.com/iucario/danmu-go/internal/chat"
 	"github.com/iucario/danmu-go/server"
 )
@@ -36,9 +37,11 @@ func main() {
 	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel)
 
 	rm := chat.NewRoomManager()
+	cs := appconfig.New()
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))
+	mux.Handle("/api/config", api.NewConfigHandler(cs))
 	mux.Handle("/obs/", obsHandler())
 
 	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
