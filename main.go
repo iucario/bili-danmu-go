@@ -21,19 +21,19 @@ func main() {
 		"path to config file (created with defaults if missing)")
 	flag.Parse()
 
-	// Set up logging to stderr + a log file before anything else.
-	logFile := openLogFile()
-	if logFile != nil {
-		defer func() { _ = logFile.Close() }()
-	}
-
-	// Load (or create) config.
+	// Load (or create) config first — we need the log level before setting up logging.
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		slog.Error("failed to load config", "err", err, "path", *configPath)
 		os.Exit(1)
 	}
-	slog.Info("config loaded", "path", *configPath)
+
+	// Set up logging to stderr + a log file.
+	logFile := openLogFile(cfg.LogLevel)
+	if logFile != nil {
+		defer func() { _ = logFile.Close() }()
+	}
+	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel)
 
 	rm := chat.NewRoomManager()
 
@@ -56,7 +56,18 @@ func main() {
 // Temp directory locations:
 //   - Linux/macOS: /tmp
 //   - Windows:     %TEMP% (e.g. C:\Users\<user>\AppData\Local\Temp)
-func openLogFile() *os.File {
+func openLogFile(levelStr string) *os.File {
+	var level slog.Level
+	switch levelStr {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		level = slog.LevelInfo
+	}
 	logPath := filepath.Join(os.TempDir(), "danmu-go.log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -66,7 +77,7 @@ func openLogFile() *os.File {
 
 	w := io.MultiWriter(os.Stderr, f)
 	slog.SetDefault(slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: level,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 			// Format timestamps as human-readable local time.
 			if a.Key == slog.TimeKey {

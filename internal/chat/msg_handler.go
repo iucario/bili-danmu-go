@@ -192,7 +192,7 @@ func (h *LiveMsgHandler) OnSuperChat(data *bili.SuperChatData) {
 		Timestamp:     data.StartTime,
 		AuthorName:    data.UserInfo.Uname,
 		AvatarURL:     data.UserInfo.Face,
-		UID:           data.UID,
+		UID:           data.UID.String(),
 		Price:         data.Price,
 		Content:       data.Message,
 		Translation:   data.MessageTrans,
