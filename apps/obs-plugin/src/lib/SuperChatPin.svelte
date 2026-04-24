@@ -58,7 +58,7 @@
 					</div>
 				</div>
 				{#if sc.content}
-					<div class="sc-content">{sc.content}</div>
+					<div class="sc-body">{sc.content}</div>
 				{/if}
 			</div>
 		{/each}
@@ -73,74 +73,5 @@
 		padding: 6px 8px 2px;
 	}
 
-	.sc-card {
-		border-radius: 8px;
-		overflow: hidden;
-		font-size: 14px;
-	}
-
-	.sc-header {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		padding: 6px 10px;
-	}
-
-	.avatar {
-		width: 32px;
-		height: 32px;
-		border-radius: 50%;
-		object-fit: cover;
-		flex-shrink: 0;
-	}
-
-	.sc-meta {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		min-width: 0;
-	}
-
-	.sc-author {
-		font-weight: 700;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
-	}
-
-	.sc-medal {
-		font-size: 11px;
-		opacity: 0.8;
-	}
-
-	.sc-right {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		flex-shrink: 0;
-	}
-
-	.sc-price {
-		font-weight: 700;
-		font-size: 15px;
-	}
-
-	.sc-timer {
-		font-size: 11px;
-		opacity: 0.75;
-		font-variant-numeric: tabular-nums;
-	}
-
-	.sc-content {
-		padding: 6px 10px 8px;
-		border-top: 1px solid rgba(255, 255, 255, 0.15);
-		line-height: 1.4;
-		word-break: break-word;
-	}
-
-	/* Color themes live in layout.css — .sc-card reads --sc-bg / --sc-color from the tier class */
-	.sc-card {
-		background: var(--sc-bg, rgba(13, 71, 161, 0.88));
-		color: var(--sc-color, #e3f2fd);
-	}
+	/* SC card layout styles are in layout.css (shared with ChatList) */
 </style>

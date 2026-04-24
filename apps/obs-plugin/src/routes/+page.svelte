@@ -8,9 +8,12 @@
 	let theme = $state('plain');
 	let store = $state<ReturnType<typeof createSSEStore> | null>(null);
 
+	const KNOWN_THEMES = ['plain', 'bubble', 'bubble-light'];
+
 	onMount(() => {
 		const params = new URLSearchParams(window.location.search);
-		theme = params.get('theme') ?? 'plain';
+		const t = params.get('theme') || '';
+		theme = KNOWN_THEMES.includes(t) ? t : 'plain';
 		const id = parseInt(params.get('roomId') ?? '', 10);
 		if (!isNaN(id) && id > 0) {
 			roomId = id;
@@ -49,6 +52,7 @@
 		display: flex;
 		flex-direction: column;
 		width: 100vw;
+		max-width: 800px;
 		height: 100vh;
 		background: transparent;
 		overflow: hidden;

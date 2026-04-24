@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte';
 	import type { ChatItem } from './types.js';
-	import { scColorClass } from './types.js';
+	import { scColorClass, DEFAULT_AVATAR } from './types.js';
 
 	let { items }: { items: ChatItem[] } = $props();
 
@@ -38,6 +38,8 @@
 		{#if item.kind === 'text'}
 			{@const lbl = badge(item.data.authorType, item.data.privilegeType)}
 			<div class="row">
+				<img class="avatar" src={item.data.avatarUrl || DEFAULT_AVATAR} alt={item.data.authorName}
+					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
 				{#if lbl}
 					<span class="badge {badgeClass(item.data.authorType, item.data.privilegeType)}">{lbl}</span>
 				{/if}
@@ -47,9 +49,23 @@
 				<span class="author">{item.data.authorName}</span><span class="sep">: </span>{#if item.data.contentType === 1}<img class="emoticon" src={item.data.contentTypeParams['url']} alt={item.data.content} />{:else}<span class="msg">{item.data.content}</span>{/if}
 			</div>
 		{:else if item.kind === 'superchat'}
-			<div class="row sc-row {scColorClass(item.data.price)}">
-				<span class="sc-price">¥{item.data.price}</span>
-				<span class="author">{item.data.authorName}</span><span class="sep">: </span><span class="msg">{item.data.content}</span>
+			<div class="sc-card {scColorClass(item.data.price)}">
+				<div class="sc-header">
+					<img class="avatar" src={item.data.avatarUrl || DEFAULT_AVATAR} alt={item.data.authorName}
+						onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
+					<div class="sc-meta">
+						<span class="sc-author">{item.data.authorName}</span>
+						{#if item.data.medalName && item.data.medalLevel}
+							<span class="sc-medal">{item.data.medalName} {item.data.medalLevel}</span>
+						{/if}
+					</div>
+					<div class="sc-right">
+						<span class="sc-price">¥{item.data.price}</span>
+					</div>
+				</div>
+				{#if item.data.content}
+					<div class="sc-body">{item.data.content}</div>
+				{/if}
 			</div>
 		{/if}
 	{/each}
@@ -62,7 +78,8 @@
 		overflow-y: auto;
 		overflow-x: hidden;
 		flex: 1;
-		gap: 2px;
+		min-height: 0; /* allow flex child to shrink and enable internal scroll */
+		gap: var(--chat-gap, 2px);
 		padding: 6px 10px;
 		scrollbar-width: none;
 		font-family: var(--font-family, system-ui, sans-serif);
@@ -73,7 +90,9 @@
 	}
 
 	.row {
+		position: relative;
 		padding: var(--row-padding, 2px 0);
+		padding-left: var(--row-indent, 0); /* overrides shorthand; themes set for avatar */
 		border-radius: var(--row-radius, 0px);
 		background: var(--row-bg, transparent);
 		line-height: 1.5;
@@ -81,17 +100,14 @@
 		text-shadow: var(--text-shadow, none);
 	}
 
-	/* All inline children flow together so long messages wrap after the username */
+	/* All inline children flow together */
 	.row > :global(*) {
 		display: inline;
 	}
 
-	/* SC rows override padding/radius/shadow independently */
-	.sc-row {
-		padding: var(--sc-row-padding, var(--row-padding, 2px 0));
-		border-radius: var(--sc-row-radius, var(--row-radius, 0px));
-		border-left: var(--sc-row-border, none);
-		text-shadow: var(--sc-text-shadow, var(--text-shadow, none));
+	/* Avatar for chat rows — hidden by default, shown in bubble themes */
+	.avatar {
+		display: none;
 	}
 
 	.author {
@@ -101,6 +117,7 @@
 	}
 
 	.sep {
+		display: var(--sep-display, inline);
 		white-space: pre;
 		color: var(--sep-color, rgba(255, 255, 255, 0.7));
 	}
@@ -136,22 +153,5 @@
 	.badge.guard2 { background: var(--badge-bg-guard2, transparent); color: var(--badge-color-guard2, #90caf9); }
 	.badge.guard3 { background: var(--badge-bg-guard3, transparent); color: var(--badge-color-guard3, #80deea); }
 
-	.sc-price {
-		font-weight: 700;
-		font-size: 0.85em;
-		margin-right: 4px;
-	}
-
-	/* SC rows override padding/radius/shadow independently */
-	.sc-row {
-		padding: var(--sc-row-padding, var(--row-padding, 2px 0));
-		border-radius: var(--sc-row-radius, var(--row-radius, 0px));
-		border-left: var(--sc-row-border, none);
-		text-shadow: var(--sc-text-shadow, var(--text-shadow, none));
-		/* Read background/color from the SC tier class via custom properties */
-		background: var(--sc-bg, transparent);
-		color: var(--sc-color, inherit);
-	}
-
-	/* SC background/color come from --sc-bg/--sc-color set by .sc-30/.sc-100 etc. in layout.css */
+	/* SC card styles live in layout.css (shared with SuperChatPin) */
 </style>

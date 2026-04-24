@@ -49,11 +49,15 @@
 	--medal-padding: 0;
 	--medal-radius: 0;
 
-	/* SC row: colored card with padding */
+	/* SC card */
 	--sc-row-border: none;
-	--sc-row-padding: 4px 10px;
-	--sc-row-radius: 6px;
-	--sc-text-shadow: none; /* no outline on colored background */
+	--sc-row-padding: 6px 10px;
+	--sc-row-radius: 8px;
+	--sc-text-shadow: none;
+	--sc-header-gap: 2px;
+	--sc-body-mt: 0;
+	--sc-body-padding: 4px 10px 6px;
+	--sc-divider: rgba(255, 255, 255, 0.15);
 
 	/* SC tier colors — override to customise per price level */
 	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;

@@ -2,6 +2,17 @@
 @plugin '@tailwindcss/typography';
 @import '$lib/themes/plain.css';
 @import '$lib/themes/bubble.css';
+@import '$lib/themes/bubble-light.css';
+
+/* Default SC tier colors (plain theme values) — used when no theme class is applied */
+:root {
+	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;
+	--sc-100-bg:  rgba(0,   77,   64, 0.88); --sc-100-color:  #e0f2f1;
+	--sc-200-bg:  rgba(27,  94,   32, 0.88); --sc-200-color:  #e8f5e9;
+	--sc-500-bg:  rgba(180, 140,   0, 0.88); --sc-500-color:  #fff9c4;
+	--sc-1000-bg: rgba(191,  54,  12, 0.88); --sc-1000-color: #fff3e0;
+	--sc-2000-bg: rgba(183,  28,  28, 0.88); --sc-2000-color: #ffebee;
+}
 
 /* SC tier classes — bridge from price class to --sc-bg/--sc-color used by components.
    Actual colors defined per theme in themes/plain.css, themes/bubble.css etc. */
@@ -11,6 +22,79 @@
 .sc-500  { --sc-bg: var(--sc-500-bg);  --sc-color: var(--sc-500-color);  }
 .sc-1000 { --sc-bg: var(--sc-1000-bg); --sc-color: var(--sc-1000-color); }
 .sc-2000 { --sc-bg: var(--sc-2000-bg); --sc-color: var(--sc-2000-color); }
+
+/* ── Shared SC card styles (ChatList + SuperChatPin) ──────────────────── */
+.sc-card {
+	border-radius: var(--sc-row-radius, 8px);
+	overflow: hidden;
+	flex-shrink: 0; /* never squish in flex column */
+	background: var(--sc-bg, rgba(13, 71, 161, 0.88));
+	color: var(--sc-color, #e3f2fd);
+	text-shadow: var(--sc-text-shadow, none);
+	line-height: 1.5;
+	word-break: break-word;
+	font-size: 14px;
+}
+
+.sc-card .sc-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: var(--sc-row-padding, 6px 10px);
+}
+
+.sc-card .sc-header .avatar {
+	display: block;
+	width: 32px;
+	height: 32px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.sc-card .sc-meta {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.sc-card .sc-author {
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sc-card .sc-medal {
+	font-size: 11px;
+	opacity: 0.8;
+}
+
+.sc-card .sc-right {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex-shrink: 0;
+}
+
+.sc-card .sc-price {
+	font-weight: 700;
+	font-size: 15px;
+}
+
+.sc-card .sc-timer {
+	font-size: 11px;
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
+.sc-card .sc-body {
+	padding: var(--sc-body-padding, 4px 10px 6px);
+	border-top: 1px solid var(--sc-divider, rgba(255, 255, 255, 0.15));
+	line-height: 1.4;
+	word-break: break-word;
+}
 
 html,
 body {
