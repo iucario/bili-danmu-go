@@ -65,6 +65,69 @@ es.onerror = () => console.error('SSE disconnected')
 
 ---
 
+## OBS Browser Source overlay
+
+danmu-go ships a built-in chat overlay page you can add directly to OBS.
+
+### Add to OBS
+
+1. Start `danmu-go` (default port 12450).
+2. In OBS → **Sources** → **+** → **Browser**.
+3. Set the URL to:
+   ```
+   http://127.0.0.1:12450/obs/?roomId=<ROOM_ID>
+   ```
+4. Set width/height to match your overlay area (e.g. 400 × 800).
+5. Check **"Shutdown source when not visible"** to pause when the scene is inactive.
+
+The overlay has a transparent background — it layers cleanly over gameplay footage.
+
+### Layout
+
+- **Top zone** — Pinned Super Chat cards, colored by price tier (¥30→¥2000+), auto-removed after their paid duration.
+- **Bottom zone** — Scrolling danmaku list, newest at the bottom. Badges for owner / admin / guard ranks. Medal name/level shown inline.
+
+### Build the overlay from source
+
+The compiled files are embedded in the Go binary at build time via `-tags obs`. To build a self-contained release binary:
+
+```sh
+cd apps/obs-plugin
+pnpm install
+pnpm build
+# Then rebuild Go with the obs tag:
+cd ../..
+go build -tags obs .
+```
+
+> **Without `-tags obs`** the server still starts normally. `/obs/` is served live from `apps/obs-plugin/build/` on disk instead — ideal for development (see below).
+
+### Develop the overlay
+
+In dev mode the Go server reads `apps/obs-plugin/build/` straight from disk, so you can iterate on the frontend without restarting Go.
+
+**Terminal 1 — Go backend:**
+```sh
+go run .
+```
+
+**Terminal 2 — Svelte watch build:**
+```sh
+cd apps/obs-plugin
+pnpm build:watch
+```
+
+**Confirm it works** — open in a browser (no OBS needed):
+```
+http://127.0.0.1:12450/obs/?roomId=<ROOM_ID>
+```
+
+You should see the transparent overlay. If no `roomId` is given, a hint message is shown. After editing a Svelte file, Vite rebuilds in ~100 ms — just refresh the browser tab (or click **Refresh** in the OBS Browser Source panel) to see the change.
+
+> `pnpm dev` starts a Vite HMR server on port 5173, but it can't reach the Go SSE API (different origin). Use `build:watch` + the Go server for end-to-end testing.
+
+---
+
 ## Development
 
 ### Prerequisites

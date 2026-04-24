@@ -39,6 +39,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))
+	mux.Handle("/obs/", obsHandler())
 
 	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
 		slog.Error("server stopped with error", "err", err)

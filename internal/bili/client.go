@@ -319,6 +319,7 @@ func (c *BLiveClient) connect() error {
 	if err := c.waitAuthReply(conn); err != nil {
 		return fmt.Errorf("auth reply: %w", err)
 	}
+	slog.Info("room connected", "roomID", c.roomID)
 
 	// Step 5: heartbeat goroutine — hbStop is closed when connect() returns,
 	// stopping the goroutine regardless of whether it was a clean or error exit.
