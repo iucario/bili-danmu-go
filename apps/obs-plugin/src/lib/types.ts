@@ -47,6 +47,10 @@ export type ChatItem =
 	| { kind: 'text'; data: TextEvent }
 	| { kind: 'superchat'; data: SuperChatEvent };
 
+/** Default avatar SVG data URI — used when avatarUrl is empty or fails to load */
+export const DEFAULT_AVATAR =
+	"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23546e7a'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%23fff' opacity='.85'/%3E%3Cellipse cx='20' cy='36' rx='12' ry='9' fill='%23fff' opacity='.85'/%3E%3C/svg%3E";
+
 /** Returns SC tier class based on price threshold */
 export function scColorClass(price: number): string {
 	if (price >= 2000) return 'sc-2000';

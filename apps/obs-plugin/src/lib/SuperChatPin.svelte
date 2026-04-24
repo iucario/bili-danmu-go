@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { SuperChatEvent } from './types.js';
-	import { scColorClass } from './types.js';
+	import { scColorClass, DEFAULT_AVATAR } from './types.js';
 
 	let { superchats }: { superchats: SuperChatEvent[] } = $props();
 
@@ -42,7 +42,8 @@
 		{#each superchats as sc (sc.id)}
 			<div class="sc-card {scColorClass(sc.price)}">
 				<div class="sc-header">
-					<img class="avatar" src={sc.avatarUrl || '/obs/default-avatar.png'} alt={sc.authorName} />
+					<img class="avatar" src={sc.avatarUrl || DEFAULT_AVATAR} alt={sc.authorName}
+					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
 					<div class="sc-meta">
 						<span class="sc-author">{sc.authorName}</span>
 						{#if sc.medalName && sc.medalLevel}
