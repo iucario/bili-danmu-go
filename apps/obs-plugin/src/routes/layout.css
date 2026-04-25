@@ -1,0 +1,131 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+@import '../lib/themes/plain.css';
+@import '../lib/themes/bubble.css';
+@import '../lib/themes/bubble-light.css';
+:root {
+	--scale: 2; /* change to 1 for original size, 2 for 2× */
+	--font-family:
+		'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif; /* default; themes override */
+	--sc-2-bg: rgba(96, 96, 96, 0.8);
+	--sc-2-color: #f5f5f5;
+	--sc-30-bg: rgba(13, 71, 161, 0.88);
+	--sc-30-color: #e3f2fd;
+	--sc-100-bg: rgba(0, 120, 60, 0.88);
+	--sc-100-color: #d4f5e5;
+	--sc-500-bg: rgba(180, 140, 0, 0.88);
+	--sc-500-color: #fff9c4;
+	--sc-1000-bg: rgba(191, 54, 12, 0.88);
+	--sc-1000-color: #fff3e0;
+}
+
+/* SC tier classes — bridge from price class to --sc-bg/--sc-color used by components.
+   Actual colors defined per theme in themes/plain.css, themes/bubble.css etc. */
+.sc-2 {
+	--sc-bg: var(--sc-2-bg);
+	--sc-color: var(--sc-2-color);
+}
+.sc-30 {
+	--sc-bg: var(--sc-30-bg);
+	--sc-color: var(--sc-30-color);
+}
+.sc-100 {
+	--sc-bg: var(--sc-100-bg);
+	--sc-color: var(--sc-100-color);
+}
+.sc-500 {
+	--sc-bg: var(--sc-500-bg);
+	--sc-color: var(--sc-500-color);
+}
+.sc-1000 {
+	--sc-bg: var(--sc-1000-bg);
+	--sc-color: var(--sc-1000-color);
+}
+
+/* ── Shared SC card styles (ChatList + SuperChatPin) ──────────────────── */
+.sc-card {
+	border-radius: var(--sc-row-radius, calc(8px * var(--scale, 1)));
+	overflow: hidden;
+	flex-shrink: 0;
+	background: var(--sc-bg, rgba(13, 71, 161, 0.88));
+	color: var(--sc-color, #e3f2fd);
+	text-shadow: var(--sc-text-shadow, none);
+	line-height: 1.5;
+	word-break: break-word;
+	font-size: calc(12px * var(--scale, 1));
+	font-family: var(--font-family, 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif);
+}
+
+.sc-card .sc-header {
+	display: flex;
+	align-items: center;
+	gap: calc(8px * var(--scale, 1));
+	padding: var(--sc-row-padding, calc(4px * var(--scale, 1)) calc(6px * var(--scale, 1)));
+}
+
+.sc-card .sc-header .avatar {
+	display: block;
+	width: calc(24px * var(--scale, 1));
+	height: calc(24px * var(--scale, 1));
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.sc-card .sc-meta {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.sc-card .sc-author {
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.sc-card .sc-medal {
+	font-size: calc(11px * var(--scale, 1));
+	opacity: 0.8;
+}
+
+.sc-card .sc-right {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex-shrink: 0;
+}
+
+.sc-card .sc-price {
+	font-weight: 700;
+	font-size: calc(12px * var(--scale, 1));
+}
+
+.sc-card .sc-timer {
+	font-size: calc(10px * var(--scale, 1));
+	opacity: 0.75;
+	font-variant-numeric: tabular-nums;
+}
+
+.sc-card .sc-body {
+	padding: var(
+		--sc-body-padding,
+		calc(2px * var(--scale, 1)) calc(4px * var(--scale, 1)) calc(4px * var(--scale, 1))
+	);
+	border-top: 1px solid var(--sc-divider, rgba(255, 255, 255, 0.15));
+	line-height: 1.4;
+	word-break: break-word;
+}
+
+html,
+body {
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	font-family: var(--font-family, 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif);
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,12 +20,20 @@ import (
 // allowing in-flight SSE rooms to broadcast a final message.
 func Run(cfg *config.Config, handler http.Handler, onShutdown func()) error {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+
+	// baseCtx is the parent of every request context. Cancelling it causes all
+	// active SSE handlers (which select on r.Context().Done()) to return, so
+	// srv.Shutdown can complete without waiting for clients to disconnect.
+	baseCtx, cancelBase := context.WithCancel(context.Background())
+	defer cancelBase()
+
 	srv := &http.Server{
-		Addr:         addr,
-		Handler:      handler,
-		ReadTimeout:  10 * time.Second,
+		Addr:        addr,
+		Handler:     handler,
+		BaseContext: func(_ net.Listener) context.Context { return baseCtx },
+		ReadTimeout: 10 * time.Second,
 		WriteTimeout: 0, // disabled — SSE connections are long-lived
-		IdleTimeout:  60 * time.Second,
+		IdleTimeout: 60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
@@ -54,6 +63,9 @@ func Run(cfg *config.Config, handler http.Handler, onShutdown func()) error {
 	if onShutdown != nil {
 		onShutdown()
 	}
+
+	// Cancel base context so all SSE handlers exit before Shutdown waits.
+	cancelBase()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

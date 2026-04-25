@@ -10,15 +10,17 @@ import (
 
 // Config holds all runtime settings.
 type Config struct {
-	Host string
-	Port int
+	Host     string
+	Port     int
+	LogLevel string // "debug", "info", "warn", "error"
 }
 
 // Default returns safe defaults used when no config file exists.
 func Default() *Config {
 	return &Config{
-		Host: "127.0.0.1",
-		Port: 12450,
+		Host:     "127.0.0.1",
+		Port:     12450,
+		LogLevel: "info",
 	}
 }
 
@@ -31,6 +33,10 @@ host = 127.0.0.1
 
 ; Port number. Change this if 12450 is already in use on your system.
 port = 12450
+
+[log]
+; Log level: debug, info, warn, error. Override with LOG_LEVEL env var.
+level = info
 `
 
 // Load reads config from path.
@@ -38,6 +44,11 @@ port = 12450
 // are returned. A parse error returns nil and the error.
 func Load(path string) (*Config, error) {
 	cfg := Default()
+
+	// Environment variable always takes precedence.
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		cfg.LogLevel = v
+	}
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -57,5 +68,14 @@ func Load(path string) (*Config, error) {
 	s := f.Section("server")
 	cfg.Host = s.Key("host").MustString(cfg.Host)
 	cfg.Port = s.Key("port").MustInt(cfg.Port)
+
+	l := f.Section("log")
+	cfg.LogLevel = l.Key("level").MustString(cfg.LogLevel)
+
+	// Environment variable takes precedence over config file.
+	if v := os.Getenv("LOG_LEVEL"); v != "" {
+		cfg.LogLevel = v
+	}
+
 	return cfg, nil
 }

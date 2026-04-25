@@ -1,0 +1,74 @@
+/*
+ * Plain theme — no background, white text, dark outline shadow.
+ * Readable on any stream content without covering it.
+ * Format: authorName[badge]: message
+ */
+.theme-plain {
+	--font-family: 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+	--font-size: calc(12px * var(--scale, 1));
+
+	--row-bg: transparent;
+	--row-radius: 0px;
+	--row-padding: calc(2px * var(--scale, 1)) 0;
+	--row-gap: calc(2px * var(--scale, 1));
+
+	--badge-margin-right: calc(5px * var(--scale, 1));
+	--author-margin-right: calc(3px * var(--scale, 1));
+
+	--text-shadow:
+		-1px -1px 0 #454545, 1px -1px 0 #454545, -1px 1px 0 #454545, 1px 1px 0 #454545,
+		0 2px 6px rgba(0, 0, 0, 0.85);
+
+	--author-color: #fff;
+	--sep-color: rgba(255, 255, 255, 0.7);
+	--msg-color: #fff;
+
+	--badge-bg-owner: transparent;
+	--badge-bg-admin: transparent;
+	--badge-bg-guard1: transparent;
+	--badge-bg-guard2: transparent;
+	--badge-bg-guard3: transparent;
+	--badge-color-owner: #f48fb1;
+	--badge-color-admin: #ffcc80;
+	--badge-color-guard1: #ce93d8;
+	--badge-color-guard2: #90caf9;
+	--badge-color-guard3: #80deea;
+	--badge-padding: 0;
+	--badge-radius: 0;
+	--badge-font-size: 0.82em;
+
+	--medal-bg: transparent;
+	--medal-color: rgba(255, 255, 255, 0.65);
+	--medal-font-size: 0.8em;
+	--medal-padding: 0;
+	--medal-radius: 0;
+
+	--sc-row-border: none;
+	--sc-row-padding: calc(6px * var(--scale, 1)) calc(10px * var(--scale, 1));
+	--sc-row-radius: calc(8px * var(--scale, 1));
+	--sc-text-shadow: none;
+	--sc-header-gap: calc(2px * var(--scale, 1));
+	--sc-body-mt: 0;
+	--sc-body-padding: calc(4px * var(--scale, 1)) calc(10px * var(--scale, 1))
+		calc(6px * var(--scale, 1));
+	--sc-divider: rgba(255, 255, 255, 0.15);
+
+	--sc-2-bg: rgba(96, 96, 96, 0.8);
+	--sc-2-color: #f5f5f5;
+	--sc-30-bg: rgba(13, 71, 161, 0.88);
+	--sc-30-color: #e3f2fd;
+	--sc-100-bg: rgba(0, 120, 60, 0.88);
+	--sc-100-color: #d4f5e5;
+	--sc-500-bg: rgba(180, 140, 0, 0.88);
+	--sc-500-color: #fff9c4;
+	--sc-1000-bg: rgba(191, 54, 12, 0.88);
+	--sc-1000-color: #fff3e0;
+}
+
+/* [brackets] around badge label in plain mode */
+.theme-plain .badge::before {
+	content: '[';
+}
+.theme-plain .badge::after {
+	content: ']';
+}

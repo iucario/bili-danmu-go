@@ -9,6 +9,28 @@ type RawMessage struct {
 	Info json.RawMessage `json:"info"`
 }
 
+// jsonStringOrInt unmarshals a JSON value that may be either a quoted string or
+// a bare number (Bilibili sends uid as both depending on the message type).
+type jsonStringOrInt string
+
+func (s *jsonStringOrInt) UnmarshalJSON(b []byte) error {
+	// Try string first
+	var str string
+	if err := json.Unmarshal(b, &str); err == nil {
+		*s = jsonStringOrInt(str)
+		return nil
+	}
+	// Fall back to number — convert to string
+	var n json.Number
+	if err := json.Unmarshal(b, &n); err != nil {
+		return err
+	}
+	*s = jsonStringOrInt(n.String())
+	return nil
+}
+
+func (s jsonStringOrInt) String() string { return string(s) }
+
 // ---- Danmaku (DANMU_MSG) ----
 // info is a heterogeneous JSON array; we decode positionally.
 
@@ -58,6 +80,8 @@ type DanmakuInfo struct {
 
 	// Mirror flag (set by caller when cmd==DANMU_MSG_MIRROR)
 	IsMirror bool `json:"-"`
+	// NotShow is true when info[0][16].not_show==1 (lottery/activity danmaku)
+	NotShow bool `json:"-"`
 }
 
 // ParseDanmakuInfo decodes the raw info array from a DANMU_MSG frame.
@@ -216,6 +240,19 @@ func ParseDanmakuInfo(raw json.RawMessage) (*DanmakuInfo, error) {
 		}
 	}
 
+	// info[0][16]: activity object — not_show:1 marks lottery danmaku
+	if len(arr) > 0 {
+		var sub []json.RawMessage
+		if err := json.Unmarshal(arr[0], &sub); err == nil && len(sub) > 16 {
+			var activity struct {
+				NotShow int `json:"not_show"`
+			}
+			if err := json.Unmarshal(sub[16], &activity); err == nil {
+				d.NotShow = activity.NotShow == 1
+			}
+		}
+	}
+
 	return d, nil
 }
 
@@ -305,7 +342,7 @@ type SuperChatData struct {
 		GiftID   int    `json:"gift_id"`
 		GiftName string `json:"gift_name"`
 	} `json:"gift"`
-	UID      string `json:"uid"`
+	UID      jsonStringOrInt `json:"uid"`
 	UserInfo struct {
 		Uname      string `json:"uname"`
 		Face       string `json:"face"`

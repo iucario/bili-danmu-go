@@ -1,0 +1,129 @@
+/*
+ * Bubble Light theme — WhatsApp light-mode style.
+ * Light grey chat bubbles, dark text. SC cards keep their tier colours.
+ */
+.theme-bubble-light {
+	--font-family: 'Xiaolai', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+	--font-size: calc(12px * var(--scale, 1));
+
+	--chat-gap: calc(2px * var(--scale, 1));
+	--row-indent: calc(30px * var(--scale, 1)); /* avatar 22px + 8px gap */
+
+	--row-bg: transparent;
+	--row-padding: 0;
+	--row-radius: 0;
+	--text-shadow: none;
+
+	--author-color: #0a7abf;
+	--author-margin-right: 0;
+	--msg-color: #111;
+
+	--badge-bg-owner: #ef476f;
+	--badge-color-owner: #fff;
+	--badge-bg-admin: #f59e0b;
+	--badge-color-admin: #1a1a1a;
+	--badge-bg-guard1: #a855f7;
+	--badge-color-guard1: #fff;
+	--badge-bg-guard2: #3b82f6;
+	--badge-color-guard2: #fff;
+	--badge-bg-guard3: #06b6d4;
+	--badge-color-guard3: #fff;
+	--badge-padding: calc(1px * var(--scale, 1)) calc(6px * var(--scale, 1));
+	--badge-radius: calc(10px * var(--scale, 1));
+	--badge-font-size: 0.75em;
+	--badge-margin-right: calc(5px * var(--scale, 1));
+
+	--medal-bg: rgba(10, 122, 191, 0.12);
+	--medal-color: #0a7abf;
+	--medal-font-size: 0.75em;
+	--medal-padding: calc(1px * var(--scale, 1)) calc(5px * var(--scale, 1));
+	--medal-radius: calc(10px * var(--scale, 1));
+
+	--sc-row-padding: calc(6px * var(--scale, 1)) calc(10px * var(--scale, 1));
+	--sc-row-radius: calc(8px * var(--scale, 1));
+	--sc-row-border: none;
+	--sc-text-shadow: none;
+	--sc-header-gap: calc(2px * var(--scale, 1));
+	--sc-body-mt: 0;
+	--sc-body-padding: calc(4px * var(--scale, 1)) calc(10px * var(--scale, 1))
+		calc(6px * var(--scale, 1));
+	--sc-divider: rgba(255, 255, 255, 0.2);
+
+	--sc-2-bg: rgba(96, 96, 96, 0.8);
+	--sc-2-color: #f5f5f5;
+	--sc-30-bg: rgba(13, 71, 161, 0.88);
+	--sc-30-color: #e3f2fd;
+	--sc-100-bg: rgba(0, 120, 60, 0.88);
+	--sc-100-color: #d4f5e5;
+	--sc-500-bg: rgba(180, 140, 0, 0.88);
+	--sc-500-color: #fff9c4;
+	--sc-1000-bg: rgba(191, 54, 12, 0.88);
+	--sc-1000-color: #fff3e0;
+}
+
+/* ── Normal chat rows ──────────────────────────────────────────────────── */
+
+.theme-bubble-light .row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+}
+
+/* Avatar: absolute, outside flex flow */
+.theme-bubble-light .row .avatar {
+	display: block;
+	position: absolute;
+	left: 0;
+	top: calc(2px * var(--scale, 1));
+	width: calc(22px * var(--scale, 1));
+	height: calc(22px * var(--scale, 1));
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.theme-bubble-light .row .badge,
+.theme-bubble-light .row .medal,
+.theme-bubble-light .row .author {
+	flex-shrink: 0;
+	font-size: 0.82em;
+	line-height: 1.6;
+}
+
+.theme-bubble-light .row .sep {
+	display: block;
+	flex-basis: 100%;
+	height: 0;
+	overflow: hidden;
+}
+
+/* Light grey bubble */
+.theme-bubble-light .row .msg {
+	display: block;
+	background: rgba(236, 235, 235, 0.88);
+	color: #111;
+	padding: calc(4px * var(--scale, 1)) calc(8px * var(--scale, 1));
+	border-radius: calc(18px * var(--scale, 1));
+	border-top-left-radius: 0;
+	margin-left: calc(2px * var(--scale, 1));
+	position: relative;
+	max-width: calc(100% - 8px * var(--scale, 1));
+	word-break: break-word;
+	line-height: 1.5;
+}
+
+.theme-bubble-light .row .msg::before {
+	content: '';
+	position: absolute;
+	top: 0;
+	left: calc(-6px * var(--scale, 1));
+	width: 0;
+	height: 0;
+	border-top: calc(8px * var(--scale, 1)) solid rgba(236, 235, 235, 0.88);
+	border-left: calc(6px * var(--scale, 1)) solid transparent;
+}
+
+/* No brackets */
+.theme-bubble-light .badge::before,
+.theme-bubble-light .badge::after {
+	content: '';
+}

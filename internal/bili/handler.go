@@ -43,6 +43,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse danmaku info", "err", err)
 			return
 		}
+		slog.Debug("bili: danmaku", "user", info.Uname, "msg", info.Msg, "lottery", info.NotShow)
 		b.Handler.OnDanmaku(info)
 
 	case "DANMU_MSG_MIRROR":
@@ -52,6 +53,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		info.IsMirror = true
+		slog.Debug("bili: danmaku_mirror", "user", info.Uname, "msg", info.Msg)
 		b.Handler.OnDanmaku(info)
 
 	case "SEND_GIFT":
@@ -60,6 +62,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse gift data", "err", err)
 			return
 		}
+		slog.Debug("bili: gift", "user", data.Uname, "gift", data.GiftName, "num", data.Num)
 		b.Handler.OnGift(&data)
 
 	case "USER_TOAST_MSG_V2":
@@ -68,6 +71,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse user_toast_v2 data", "err", err)
 			return
 		}
+		slog.Debug("bili: guard", "user", data.SenderUinfo.Base.Name, "level", data.GuardInfo.GuardLevel)
 		b.Handler.OnUserToastV2(&data)
 
 	case "SUPER_CHAT_MESSAGE":
@@ -76,6 +80,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse super_chat data", "err", err)
 			return
 		}
+		slog.Debug("bili: superchat", "user", data.UserInfo.Uname, "price", data.Price, "msg", data.Message)
 		b.Handler.OnSuperChat(&data)
 
 	case "SUPER_CHAT_MESSAGE_DELETE":
@@ -84,9 +89,10 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse super_chat_delete data", "err", err)
 			return
 		}
+		slog.Debug("bili: superchat_delete", "ids", data.IDs)
 		b.Handler.OnSuperChatDelete(&data)
 
 	default:
-		// Silently ignore unhandled commands (INTERACT_WORD_V2, etc.)
+		// Silently ignore unhandled commands (INTERACT_WORD_V2, WATCHED_CHANGE, etc.)
 	}
 }
