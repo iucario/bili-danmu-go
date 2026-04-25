@@ -101,7 +101,7 @@
 	display: block;
 	background: rgba(32, 44, 51, 0.92);
 	color: #e9edef;
-	padding: calc(4px * var(--scale, 1)) calc(9px * var(--scale, 1));
+	padding: calc(4px * var(--scale, 1)) calc(8px * var(--scale, 1));
 	border-radius: calc(10px * var(--scale, 1));
 	border-top-left-radius: 0;
 	margin-left: calc(2px * var(--scale, 1));
