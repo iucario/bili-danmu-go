@@ -90,10 +90,10 @@
 		flex: 1;
 		min-height: 0;
 		gap: var(--chat-gap, 2px);
-		padding: calc(6px * var(--scale, 1)) calc(10px * var(--scale, 1));
+		padding: calc(3px * var(--scale, 1)) calc(4px * var(--scale, 1));
 		scrollbar-width: none;
 		font-family: var(--font-family, system-ui, sans-serif);
-		font-size: var(--font-size, 15px);
+		font-size: var(--font-size);
 	}
 	.chat-list::-webkit-scrollbar {
 		display: none;

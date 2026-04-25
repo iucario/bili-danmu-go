@@ -79,7 +79,7 @@
 		align-items: center;
 		gap: 6px;
 		padding: 5px 12px;
-		font-size: 12px;
+		font-size: 14px;
 		background: rgba(30, 30, 30, 0.75);
 		color: #ffffffcc;
 	}

@@ -5,7 +5,7 @@
  */
 .theme-plain {
 	--font-family: 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
-	--font-size: calc(14px * var(--scale, 1));
+	--font-size: calc(12px * var(--scale, 1));
 
 	--row-bg: transparent;
 	--row-radius: 0px;

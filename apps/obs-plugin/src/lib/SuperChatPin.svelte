@@ -95,7 +95,7 @@
 	.pinned-zone {
 		display: flex;
 		flex-direction: column;
-		gap: calc(4px * var(--scale, 1));
+		gap: calc(2px * var(--scale, 1));
 		padding: calc(6px * var(--scale, 1)) calc(8px * var(--scale, 1)) calc(2px * var(--scale, 1));
 		max-height: 45%;
 		overflow: hidden; /* safety: JS already limits to fully-fitting cards */

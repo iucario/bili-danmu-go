@@ -4,10 +4,10 @@
  */
 .theme-bubble-light {
 	--font-family: 'Xiaolai', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
-	--font-size: calc(14px * var(--scale, 1));
+	--font-size: calc(12px * var(--scale, 1));
 
-	--chat-gap: calc(8px * var(--scale, 1));
-	--row-indent: calc(36px * var(--scale, 1)); /* avatar 28px + 8px gap */
+	--chat-gap: calc(2px * var(--scale, 1));
+	--row-indent: calc(30px * var(--scale, 1)); /* avatar 22px + 8px gap */
 
 	--row-bg: transparent;
 	--row-padding: 0;
@@ -75,8 +75,8 @@
 	position: absolute;
 	left: 0;
 	top: calc(2px * var(--scale, 1));
-	width: calc(28px * var(--scale, 1));
-	height: calc(28px * var(--scale, 1));
+	width: calc(22px * var(--scale, 1));
+	height: calc(22px * var(--scale, 1));
 	border-radius: 50%;
 	object-fit: cover;
 }
@@ -101,10 +101,10 @@
 	display: block;
 	background: rgba(255, 255, 255, 0.88);
 	color: #111;
-	padding: calc(7px * var(--scale, 1)) calc(12px * var(--scale, 1));
+	padding: calc(4px * var(--scale, 1)) calc(4px * var(--scale, 1));
 	border-radius: calc(18px * var(--scale, 1));
 	border-top-left-radius: 0;
-	margin-left: calc(8px * var(--scale, 1));
+	margin-left: calc(2px * var(--scale, 1));
 	position: relative;
 	max-width: calc(100% - 8px * var(--scale, 1));
 	word-break: break-word;
