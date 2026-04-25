@@ -41,6 +41,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))
+	mux.Handle("GET /api/avatar", api.NewAvatarProxyHandler())
 	mux.Handle("/api/config", api.NewConfigHandler(cs))
 	mux.Handle("/obs/", obsHandler())
 

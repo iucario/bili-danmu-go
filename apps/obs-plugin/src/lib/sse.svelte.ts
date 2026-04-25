@@ -30,11 +30,13 @@ export function createSSEStore(roomId: number) {
 
 		es.addEventListener('add_text', (e: MessageEvent) => {
 			const ev = JSON.parse(e.data) as TextEvent;
+			if (ev.avatarUrl) ev.avatarUrl = `/api/avatar?url=${encodeURIComponent(ev.avatarUrl)}`;
 			chatItems = [...chatItems.slice(-(MAX_CHAT_ITEMS - 1)), { kind: 'text', data: ev }];
 		});
 
 		es.addEventListener('add_super_chat', (e: MessageEvent) => {
 			const ev = JSON.parse(e.data) as SuperChatEvent;
+			if (ev.avatarUrl) ev.avatarUrl = `/api/avatar?url=${encodeURIComponent(ev.avatarUrl)}`;
 			chatItems = [...chatItems.slice(-(MAX_CHAT_ITEMS - 1)), { kind: 'superchat', data: ev }];
 			pinnedSCs = [...pinnedSCs, ev];
 
