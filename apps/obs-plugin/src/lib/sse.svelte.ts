@@ -68,10 +68,18 @@ export function createSSEStore(roomId: number) {
 	}
 
 	return {
-		get chatItems() { return chatItems; },
-		get pinnedSCs() { return pinnedSCs; },
-		get status() { return status; },
-		get error() { return error; },
+		get chatItems() {
+			return chatItems;
+		},
+		get pinnedSCs() {
+			return pinnedSCs;
+		},
+		get status() {
+			return status;
+		},
+		get error() {
+			return error;
+		},
 		connect,
 		disconnect
 	};

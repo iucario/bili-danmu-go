@@ -54,8 +54,8 @@ export const DEFAULT_AVATAR =
 /** Returns SC tier class based on price threshold */
 export function scColorClass(price: number): string {
 	if (price >= 1000) return 'sc-1000';
-	if (price >= 500)  return 'sc-500';
-	if (price >= 100)  return 'sc-100';
-	if (price >= 30)  return 'sc-30';
+	if (price >= 500) return 'sc-500';
+	if (price >= 100) return 'sc-100';
+	if (price >= 30) return 'sc-30';
 	return 'sc-2';
 }

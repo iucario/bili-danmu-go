@@ -44,7 +44,11 @@
 			linear-gradient(45deg, transparent 75%, #aaa 75%),
 			linear-gradient(-45deg, transparent 75%, #aaa 75%);
 		background-size: 20px 20px;
-		background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+		background-position:
+			0 0,
+			0 10px,
+			10px -10px,
+			-10px 0px;
 		transition: background 0.3s;
 	}
 

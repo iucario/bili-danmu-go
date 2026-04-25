@@ -18,11 +18,16 @@
 	--author-margin-right: 0;
 	--msg-color: #111;
 
-	--badge-bg-owner:  #ef476f; --badge-color-owner:  #fff;
-	--badge-bg-admin:  #f59e0b; --badge-color-admin:  #1a1a1a;
-	--badge-bg-guard1: #a855f7; --badge-color-guard1: #fff;
-	--badge-bg-guard2: #3b82f6; --badge-color-guard2: #fff;
-	--badge-bg-guard3: #06b6d4; --badge-color-guard3: #fff;
+	--badge-bg-owner: #ef476f;
+	--badge-color-owner: #fff;
+	--badge-bg-admin: #f59e0b;
+	--badge-color-admin: #1a1a1a;
+	--badge-bg-guard1: #a855f7;
+	--badge-color-guard1: #fff;
+	--badge-bg-guard2: #3b82f6;
+	--badge-color-guard2: #fff;
+	--badge-bg-guard3: #06b6d4;
+	--badge-color-guard3: #fff;
 	--badge-padding: calc(1px * var(--scale, 1)) calc(6px * var(--scale, 1));
 	--badge-radius: calc(10px * var(--scale, 1));
 	--badge-font-size: 0.75em;
@@ -40,14 +45,20 @@
 	--sc-text-shadow: none;
 	--sc-header-gap: calc(2px * var(--scale, 1));
 	--sc-body-mt: 0;
-	--sc-body-padding: calc(4px * var(--scale, 1)) calc(10px * var(--scale, 1)) calc(6px * var(--scale, 1));
+	--sc-body-padding: calc(4px * var(--scale, 1)) calc(10px * var(--scale, 1))
+		calc(6px * var(--scale, 1));
 	--sc-divider: rgba(255, 255, 255, 0.2);
 
-	--sc-2-bg:    rgba(96,  96,  96, 0.80); --sc-2-color:    #f5f5f5;
-	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;
-	--sc-100-bg:  rgba(0,  120,   60, 0.88); --sc-100-color:  #d4f5e5;
-	--sc-500-bg:  rgba(180, 140,   0, 0.88); --sc-500-color:  #fff9c4;
-	--sc-1000-bg: rgba(191,  54,  12, 0.88); --sc-1000-color: #fff3e0;
+	--sc-2-bg: rgba(96, 96, 96, 0.8);
+	--sc-2-color: #f5f5f5;
+	--sc-30-bg: rgba(13, 71, 161, 0.88);
+	--sc-30-color: #e3f2fd;
+	--sc-100-bg: rgba(0, 120, 60, 0.88);
+	--sc-100-color: #d4f5e5;
+	--sc-500-bg: rgba(180, 140, 0, 0.88);
+	--sc-500-color: #fff9c4;
+	--sc-1000-bg: rgba(191, 54, 12, 0.88);
+	--sc-1000-color: #fff3e0;
 }
 
 /* ── Normal chat rows ──────────────────────────────────────────────────── */

@@ -28,21 +28,41 @@
 		{#if item.kind === 'text'}
 			{@const lbl = badge(item.data.authorType, item.data.privilegeType)}
 			<div class="row">
-				<img class="avatar" src={item.data.avatarUrl || DEFAULT_AVATAR} alt={item.data.authorName}
-					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
+				<img
+					class="avatar"
+					src={item.data.avatarUrl || DEFAULT_AVATAR}
+					alt={item.data.authorName}
+					onerror={(e) => {
+						(e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR;
+					}}
+				/>
 				{#if lbl}
-					<span class="badge {badgeClass(item.data.authorType, item.data.privilegeType)}">{lbl}</span>
+					<span class="badge {badgeClass(item.data.authorType, item.data.privilegeType)}"
+						>{lbl}</span
+					>
 				{/if}
 				{#if item.data.medalName && item.data.medalLevel}
 					<span class="medal">{item.data.medalName}&nbsp;{item.data.medalLevel}</span>
 				{/if}
-				<span class="author">{item.data.authorName}</span><span class="sep">: </span>{#if item.data.contentType === 1}<img class="emoticon" src={item.data.contentTypeParams['url']} alt={item.data.content} />{:else}<span class="msg">{item.data.content}</span>{/if}
+				<span class="author">{item.data.authorName}</span><span class="sep"
+					>:
+				</span>{#if item.data.contentType === 1}<img
+						class="emoticon"
+						src={item.data.contentTypeParams['url']}
+						alt={item.data.content}
+					/>{:else}<span class="msg">{item.data.content}</span>{/if}
 			</div>
 		{:else if item.kind === 'superchat'}
 			<div class="sc-card {scColorClass(item.data.price)}">
 				<div class="sc-header">
-					<img class="avatar" src={item.data.avatarUrl || DEFAULT_AVATAR} alt={item.data.authorName}
-						onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
+					<img
+						class="avatar"
+						src={item.data.avatarUrl || DEFAULT_AVATAR}
+						alt={item.data.authorName}
+						onerror={(e) => {
+							(e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR;
+						}}
+					/>
 					<div class="sc-meta">
 						<span class="sc-author">{item.data.authorName}</span>
 						{#if item.data.medalName && item.data.medalLevel}
@@ -66,7 +86,7 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: flex-end; /* anchor items to bottom; overflow clips at top */
-		overflow: hidden;          /* no scroll — old messages disappear off the top */
+		overflow: hidden; /* no scroll — old messages disappear off the top */
 		flex: 1;
 		min-height: 0;
 		gap: var(--chat-gap, 2px);
@@ -137,11 +157,26 @@
 		border-radius: var(--badge-radius, 0);
 		margin-right: var(--badge-margin-right, 0px);
 	}
-	.badge.owner  { background: var(--badge-bg-owner,  transparent); color: var(--badge-color-owner,  #f48fb1); }
-	.badge.admin  { background: var(--badge-bg-admin,  transparent); color: var(--badge-color-admin,  #ffcc80); }
-	.badge.guard1 { background: var(--badge-bg-guard1, transparent); color: var(--badge-color-guard1, #ce93d8); }
-	.badge.guard2 { background: var(--badge-bg-guard2, transparent); color: var(--badge-color-guard2, #90caf9); }
-	.badge.guard3 { background: var(--badge-bg-guard3, transparent); color: var(--badge-color-guard3, #80deea); }
+	.badge.owner {
+		background: var(--badge-bg-owner, transparent);
+		color: var(--badge-color-owner, #f48fb1);
+	}
+	.badge.admin {
+		background: var(--badge-bg-admin, transparent);
+		color: var(--badge-color-admin, #ffcc80);
+	}
+	.badge.guard1 {
+		background: var(--badge-bg-guard1, transparent);
+		color: var(--badge-color-guard1, #ce93d8);
+	}
+	.badge.guard2 {
+		background: var(--badge-bg-guard2, transparent);
+		color: var(--badge-color-guard2, #90caf9);
+	}
+	.badge.guard3 {
+		background: var(--badge-bg-guard3, transparent);
+		color: var(--badge-color-guard3, #80deea);
+	}
 
 	/* SC card styles live in layout.css (shared with SuperChatPin) */
 </style>

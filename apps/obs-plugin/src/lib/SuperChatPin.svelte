@@ -45,8 +45,14 @@
 		{#each visibleChats as sc (sc.id)}
 			<div class="sc-card {scColorClass(sc.price)}">
 				<div class="sc-header">
-					<img class="avatar" src={sc.avatarUrl || DEFAULT_AVATAR} alt={sc.authorName}
-					onerror={(e) => { (e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR; }} />
+					<img
+						class="avatar"
+						src={sc.avatarUrl || DEFAULT_AVATAR}
+						alt={sc.authorName}
+						onerror={(e) => {
+							(e.currentTarget as HTMLImageElement).src = DEFAULT_AVATAR;
+						}}
+					/>
 					<div class="sc-meta">
 						<span class="sc-author">{sc.authorName}</span>
 						{#if sc.medalName && sc.medalLevel}
