@@ -17,6 +17,7 @@
 	--sc-500-color: #fff9c4;
 	--sc-1000-bg: rgba(191, 54, 12, 0.88);
 	--sc-1000-color: #fff3e0;
+	--max-width: 600px;
 }
 
 /* SC tier classes — bridge from price class to --sc-bg/--sc-color used by components.

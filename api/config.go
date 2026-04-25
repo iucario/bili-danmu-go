@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/iucario/danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/appconfig"
 )
 
 // NewConfigHandler returns a handler for /api/config.

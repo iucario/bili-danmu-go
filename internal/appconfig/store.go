@@ -38,6 +38,6 @@ func (s *Store) Set(cfg AppConfig) error {
 func (s *Store) Patch(patch AppConfig) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cfg = s.cfg
+	s.cfg = patch
 	return nil
 }

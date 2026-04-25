@@ -66,7 +66,7 @@
 		inset: 0;
 		display: flex;
 		flex-direction: column;
-		max-width: 800px;
+		max-width: var(--max-width, none);
 		background: transparent;
 		overflow: hidden;
 	}

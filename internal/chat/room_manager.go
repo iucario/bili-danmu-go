@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iucario/danmu-go/internal/bili"
+	"github.com/iucario/bili-danmu-go/internal/bili"
 )
 
 const teardownDelay = 10 * time.Second

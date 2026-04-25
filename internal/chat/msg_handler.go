@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync/atomic"
 
-	"github.com/iucario/danmu-go/internal/bili"
+	"github.com/iucario/bili-danmu-go/internal/bili"
 )
 
 // LiveMsgHandler translates raw Bilibili messages into SSE events and broadcasts

@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/iucario/danmu-go/internal/chat"
+	"github.com/iucario/bili-danmu-go/internal/chat"
 )
 
 // NewChatHandler returns an http.Handler for GET /api/chat/stream.

@@ -10,11 +10,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/iucario/danmu-go/api"
-	"github.com/iucario/danmu-go/config"
-	"github.com/iucario/danmu-go/internal/appconfig"
-	"github.com/iucario/danmu-go/internal/chat"
-	"github.com/iucario/danmu-go/server"
+	"github.com/iucario/bili-danmu-go/api"
+	"github.com/iucario/bili-danmu-go/config"
+	"github.com/iucario/bili-danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/chat"
+	"github.com/iucario/bili-danmu-go/internal/version"
+	"github.com/iucario/bili-danmu-go/server"
 )
 
 func main() {
@@ -34,7 +35,7 @@ func main() {
 	if logFile != nil {
 		defer func() { _ = logFile.Close() }()
 	}
-	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel)
+	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel, "version", version.Version)
 
 	rm := chat.NewRoomManager()
 	cs := appconfig.New()
