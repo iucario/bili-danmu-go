@@ -53,7 +53,7 @@
 		display: flex;
 		flex-direction: column;
 		width: 100vw;
-		max-width: 800px;
+		max-width: var(--max-width, none);
 		height: 100vh;
 		background: transparent;
 		overflow: hidden;
