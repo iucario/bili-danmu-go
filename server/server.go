@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/iucario/danmu-go/config"
+	"github.com/iucario/bili-danmu-go/config"
 )
 
 // Run starts the HTTP server and blocks until SIGINT or SIGTERM.

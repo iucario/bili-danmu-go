@@ -31,10 +31,13 @@ func NewAvatarProxyHandler() http.Handler {
 			http.Error(w, "upstream error", http.StatusBadGateway)
 			return
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
 		w.Header().Set("Cache-Control", "public, max-age=86400")
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			// Response headers already sent; nothing useful we can do.
+			return
+		}
 	})
 }

@@ -1,0 +1,196 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v\\d+\\.\\d+\\.\\d+"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Build and release"
+        required: true
+        type: boolean
+        default: false
+      prerelease:
+        description: "Is pre-release"
+        required: true
+        type: boolean
+        default: true
+      draft:
+        description: "Is draft"
+        required: true
+        type: boolean
+        default: true
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
+
+  build-frontend:
+    name: Build frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: apps/obs-plugin/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: apps/obs-plugin
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        working-directory: apps/obs-plugin
+        run: pnpm build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: obs-plugin-build
+          path: apps/obs-plugin/build
+          retention-days: 7
+
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    needs: [ lint, build-frontend ]
+
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: ubuntu-latest
+            goos: linux
+            goarch: arm64
+          - os: windows-latest
+            goos: windows
+            goarch: amd64
+            extra_ldflags: " -H windowsgui"
+          - os: windows-latest
+            goos: windows
+            goarch: arm64
+            extra_ldflags: " -H windowsgui"
+          - os: macos-latest
+            goos: darwin
+            goarch: amd64
+          - os: macos-latest
+            goos: darwin
+            goarch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Get latest tag
+        id: get_tag
+        run: echo "tag=$(git describe --tags --abbrev=0 || echo 'v0.0.0')" >>
+          $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: obs-plugin-build
+          path: apps/obs-plugin/build
+
+      - name: Build binary
+        run: |
+          EXT=${{ matrix.goos == 'windows' && '.exe' || '' }}
+          BINARY=bili-danmu-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
+          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build -tags obs \
+              -ldflags "-X 'github.com/iucario/bili-danmu-go/internal/version.Version=${{ steps.get_tag.outputs.tag }}'${{ matrix.extra_ldflags }}" \
+              -o "${BINARY}"
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bili-danmu-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: bili-danmu-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goos ==
+            'windows' && '.exe' || '' }}
+          retention-days: 7
+
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.release
+      == 'true') || startsWith(github.ref, 'refs/tags/v')
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch tags
+        run: git fetch --tags --force
+
+      - name: Get latest tag
+        id: get_tag
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=$(git describe --tags --abbrev=0 || echo 'v0.0.0')" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          pattern: bili-danmu-*
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -R release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Release ${{ steps.get_tag.outputs.tag }}
+          draft: ${{ github.event.inputs.draft || 'false' }}
+          prerelease: ${{ github.event.inputs.prerelease || 'false' }}
+          files: release-assets/*
