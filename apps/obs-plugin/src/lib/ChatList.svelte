@@ -1,18 +1,8 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import type { ChatItem } from './types.js';
 	import { scColorClass, DEFAULT_AVATAR } from './types.js';
 
 	let { items }: { items: ChatItem[] } = $props();
-
-	let listEl = $state<HTMLElement | null>(null);
-
-	$effect(() => {
-		items.length;
-		tick().then(() => {
-			if (listEl) listEl.scrollTop = listEl.scrollHeight;
-		});
-	});
 
 	function badge(authorType: number, privilegeType: number): string {
 		if (authorType === 3) return '主播';
@@ -33,7 +23,7 @@
 	}
 </script>
 
-<div class="chat-list" bind:this={listEl}>
+<div class="chat-list">
 	{#each items as item (item.data.id)}
 		{#if item.kind === 'text'}
 			{@const lbl = badge(item.data.authorType, item.data.privilegeType)}
@@ -75,12 +65,12 @@
 	.chat-list {
 		display: flex;
 		flex-direction: column;
-		overflow-y: auto;
-		overflow-x: hidden;
+		justify-content: flex-end; /* anchor items to bottom; overflow clips at top */
+		overflow: hidden;          /* no scroll — old messages disappear off the top */
 		flex: 1;
-		min-height: 0; /* allow flex child to shrink and enable internal scroll */
+		min-height: 0;
 		gap: var(--chat-gap, 2px);
-		padding: 6px 10px;
+		padding: calc(6px * var(--scale, 1)) calc(10px * var(--scale, 1));
 		scrollbar-width: none;
 		font-family: var(--font-family, system-ui, sans-serif);
 		font-size: var(--font-size, 15px);
@@ -127,7 +117,7 @@
 	}
 
 	.emoticon {
-		height: 24px;
+		height: calc(24px * var(--scale, 1));
 		width: auto;
 		vertical-align: middle;
 	}

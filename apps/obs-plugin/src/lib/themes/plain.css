@@ -5,16 +5,15 @@
  */
 .theme-plain {
 	--font-family: 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
-	--font-size: 18px;
+	--font-size: calc(18px * var(--scale, 1));
 
 	--row-bg: transparent;
 	--row-radius: 0px;
-	--row-padding: 2px 0;
-	--row-gap: 2px;
+	--row-padding: calc(2px * var(--scale, 1)) 0;
+	--row-gap: calc(2px * var(--scale, 1));
 
-	/* Individual spacing between inline elements */
-	--badge-margin-right: 5px;
-	--author-margin-right: 3px;
+	--badge-margin-right: calc(5px * var(--scale, 1));
+	--author-margin-right: calc(3px * var(--scale, 1));
 
 	--text-shadow:
 		-1px -1px 0 #454545,
@@ -27,7 +26,6 @@
 	--sep-color: rgba(255, 255, 255, 0.7);
 	--msg-color: #fff;
 
-	/* Badge displayed as [text], no background */
 	--badge-bg-owner: transparent;
 	--badge-bg-admin: transparent;
 	--badge-bg-guard1: transparent;
@@ -42,30 +40,26 @@
 	--badge-radius: 0;
 	--badge-font-size: 0.82em;
 
-	/* Medal: just text, no pill */
 	--medal-bg: transparent;
 	--medal-color: rgba(255, 255, 255, 0.65);
 	--medal-font-size: 0.8em;
 	--medal-padding: 0;
 	--medal-radius: 0;
 
-	/* SC card */
 	--sc-row-border: none;
-	--sc-row-padding: 6px 10px;
-	--sc-row-radius: 8px;
+	--sc-row-padding: calc(6px * var(--scale, 1)) calc(10px * var(--scale, 1));
+	--sc-row-radius: calc(8px * var(--scale, 1));
 	--sc-text-shadow: none;
-	--sc-header-gap: 2px;
+	--sc-header-gap: calc(2px * var(--scale, 1));
 	--sc-body-mt: 0;
-	--sc-body-padding: 4px 10px 6px;
+	--sc-body-padding: calc(4px * var(--scale, 1)) calc(10px * var(--scale, 1)) calc(6px * var(--scale, 1));
 	--sc-divider: rgba(255, 255, 255, 0.15);
 
-	/* SC tier colors — override to customise per price level */
+	--sc-2-bg:    rgba(96,  96,  96, 0.80); --sc-2-color:    #f5f5f5;
 	--sc-30-bg:   rgba(13,  71,  161, 0.88); --sc-30-color:   #e3f2fd;
-	--sc-100-bg:  rgba(0,   77,   64, 0.88); --sc-100-color:  #e0f2f1;
-	--sc-200-bg:  rgba(27,  94,   32, 0.88); --sc-200-color:  #e8f5e9;
+	--sc-100-bg:  rgba(0,  120,   60, 0.88); --sc-100-color:  #d4f5e5;
 	--sc-500-bg:  rgba(180, 140,   0, 0.88); --sc-500-color:  #fff9c4;
 	--sc-1000-bg: rgba(191,  54,  12, 0.88); --sc-1000-color: #fff3e0;
-	--sc-2000-bg: rgba(183,  28,  28, 0.88); --sc-2000-color: #ffebee;
 }
 
 /* [brackets] around badge label in plain mode */

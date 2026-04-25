@@ -35,11 +35,14 @@
 		const s = secs % 60;
 		return m > 0 ? `${m}:${String(s).padStart(2, '0')}` : `${s}s`;
 	}
+
+	const MAX_SC_CARDS = 2;
+	let visibleChats = $derived(superchats.slice(0, MAX_SC_CARDS));
 </script>
 
 {#if superchats.length > 0}
 	<div class="pinned-zone">
-		{#each superchats as sc (sc.id)}
+		{#each visibleChats as sc (sc.id)}
 			<div class="sc-card {scColorClass(sc.price)}">
 				<div class="sc-header">
 					<img class="avatar" src={sc.avatarUrl || DEFAULT_AVATAR} alt={sc.authorName}
@@ -69,8 +72,11 @@
 	.pinned-zone {
 		display: flex;
 		flex-direction: column;
-		gap: 4px;
-		padding: 6px 8px 2px;
+		gap: calc(4px * var(--scale, 1));
+		padding: calc(6px * var(--scale, 1)) calc(8px * var(--scale, 1)) calc(2px * var(--scale, 1));
+		max-height: 45%;
+		overflow: hidden; /* safety: JS already limits to fully-fitting cards */
+		flex-shrink: 0;
 	}
 
 	/* SC card layout styles are in layout.css (shared with ChatList) */
