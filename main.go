@@ -57,6 +57,7 @@ func main() {
 	mux.Handle("GET /api/avatar", api.NewAvatarProxyHandler())
 	mux.Handle("/api/config", api.NewConfigHandler(cs))
 	mux.Handle("/obs/", obsHandler())
+	mux.Handle("/admin/", adminHandler())
 
 	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
 		slog.Error("server stopped with error", "err", err)
