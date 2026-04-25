@@ -1,7 +1,6 @@
 import type { ChatItem, SuperChatEvent } from './types.js';
 
-let _id = 0;
-const id = () => String(++_id);
+const id = () => Math.random().toString(36).substring(2, 10);
 const ts = () => Math.floor(Date.now() / 1000);
 
 export const mockItems: ChatItem[] = [
@@ -192,6 +191,29 @@ export const mockItems: ChatItem[] = [
 			medalLevel: 18,
 			medalName: '铁粉',
 			time: 120
+		}
+	},
+	{
+		kind: 'text',
+		data: {
+			id: id(),
+			timestamp: ts(),
+			uid: '9',
+			authorName: 'bot33',
+			authorType: 0,
+			privilegeType: 0,
+			content: '1',
+			authorLevel: 1,
+			isNewbie: true,
+			isMobileVerified: false,
+			isGiftDanmaku: false,
+			isMirror: false,
+			medalLevel: 0,
+			medalName: '',
+			avatarUrl: '',
+			contentType: 0,
+			contentTypeParams: {},
+			translation: ''
 		}
 	},
 	{

@@ -37,7 +37,24 @@
 	}
 
 	const MAX_SC_CARDS = 2;
-	let visibleChats = $derived(superchats.slice(0, MAX_SC_CARDS));
+
+	let visibleChats = $derived.by(() => {
+		// Tag each SC with its arrival index (higher = newer)
+		const indexed = superchats.map((sc, i) => ({ sc, i }));
+
+		// Select top MAX_SC_CARDS: higher price wins; same price → newer wins
+		indexed.sort((a, b) =>
+			b.sc.price !== a.sc.price ? b.sc.price - a.sc.price : b.i - a.i
+		);
+		const selected = indexed.slice(0, MAX_SC_CARDS);
+
+		// Display: higher price at top; same price → older at top, newer at bottom
+		selected.sort((a, b) =>
+			b.sc.price !== a.sc.price ? b.sc.price - a.sc.price : a.i - b.i
+		);
+
+		return selected.map(({ sc }) => sc);
+	});
 </script>
 
 {#if superchats.length > 0}
