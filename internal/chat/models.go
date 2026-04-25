@@ -20,6 +20,7 @@ type AddTextEvent struct {
 	Content           string            `json:"content"`
 	PrivilegeType     int               `json:"privilegeType"` // 0=none 1=总督 2=提督 3=舰长
 	IsGiftDanmaku     bool              `json:"isGiftDanmaku"`
+	IsLottery         bool              `json:"isLottery"`
 	AuthorLevel       int               `json:"authorLevel"`
 	IsNewbie          bool              `json:"isNewbie"`
 	IsMobileVerified  bool              `json:"isMobileVerified"`

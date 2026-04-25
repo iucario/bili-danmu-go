@@ -8,7 +8,7 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected';
  * Creates a reactive SSE store that connects to the danmu-go backend.
  * Uses Svelte 5 $state runes — must be called inside a Svelte component or effect root.
  */
-export function createSSEStore(roomId: number) {
+export function createSSEStore(roomId: number, filterLottery = false) {
 	let chatItems = $state<ChatItem[]>([]);
 	let pinnedSCs = $state<SuperChatEvent[]>([]);
 	let status = $state<ConnectionStatus>('connecting');
@@ -30,6 +30,8 @@ export function createSSEStore(roomId: number) {
 
 		es.addEventListener('add_text', (e: MessageEvent) => {
 			const ev = JSON.parse(e.data) as TextEvent;
+			// console.debug('Received text event', ev);
+			if (filterLottery && ev.isLottery) return;
 			if (ev.avatarUrl) ev.avatarUrl = `/api/avatar?url=${encodeURIComponent(ev.avatarUrl)}`;
 			chatItems = [...chatItems.slice(-(MAX_CHAT_ITEMS - 1)), { kind: 'text', data: ev }];
 		});
@@ -38,7 +40,7 @@ export function createSSEStore(roomId: number) {
 			const ev = JSON.parse(e.data) as SuperChatEvent;
 			if (ev.avatarUrl) ev.avatarUrl = `/api/avatar?url=${encodeURIComponent(ev.avatarUrl)}`;
 			chatItems = [...chatItems.slice(-(MAX_CHAT_ITEMS - 1)), { kind: 'superchat', data: ev }];
-			pinnedSCs = [...pinnedSCs, ev];
+			if (ev.price >= 30) pinnedSCs = [...pinnedSCs, ev];
 
 			const duration = (ev.time ?? 60) * 1000;
 			setTimeout(() => {

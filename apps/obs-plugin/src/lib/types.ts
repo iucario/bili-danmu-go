@@ -8,6 +8,7 @@ export interface TextEvent {
 	/** 0=none, 1=总督, 2=提督, 3=舰长 */
 	privilegeType: number;
 	isGiftDanmaku: boolean;
+	isLottery: boolean;
 	authorLevel: number;
 	isNewbie: boolean;
 	isMobileVerified: boolean;

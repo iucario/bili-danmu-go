@@ -17,7 +17,8 @@
 		const id = parseInt(params.get('roomId') ?? '', 10);
 		if (!isNaN(id) && id > 0) {
 			roomId = id;
-			store = createSSEStore(id);
+			const filterLottery = params.get('filterLottery') === '1';
+			store = createSSEStore(id, filterLottery);
 			store.connect();
 		}
 	});

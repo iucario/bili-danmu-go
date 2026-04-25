@@ -80,6 +80,8 @@ type DanmakuInfo struct {
 
 	// Mirror flag (set by caller when cmd==DANMU_MSG_MIRROR)
 	IsMirror bool `json:"-"`
+	// NotShow is true when info[0][16].not_show==1 (lottery/activity danmaku)
+	NotShow bool `json:"-"`
 }
 
 // ParseDanmakuInfo decodes the raw info array from a DANMU_MSG frame.
@@ -235,6 +237,19 @@ func ParseDanmakuInfo(raw json.RawMessage) (*DanmakuInfo, error) {
 		var wealth []json.RawMessage
 		if err := json.Unmarshal(arr[16], &wealth); err == nil && len(wealth) > 0 {
 			_ = json.Unmarshal(wealth[0], &d.WealthLevel)
+		}
+	}
+
+	// info[0][16]: activity object — not_show:1 marks lottery danmaku
+	if len(arr) > 0 {
+		var sub []json.RawMessage
+		if err := json.Unmarshal(arr[0], &sub); err == nil && len(sub) > 16 {
+			var activity struct {
+				NotShow int `json:"not_show"`
+			}
+			if err := json.Unmarshal(sub[16], &activity); err == nil {
+				d.NotShow = activity.NotShow == 1
+			}
 		}
 	}
 

@@ -108,6 +108,7 @@ func (h *LiveMsgHandler) OnDanmaku(info *bili.DanmakuInfo) {
 		Content:           content,
 		PrivilegeType:     info.PrivilegeType,
 		IsGiftDanmaku:     info.DmType == 1,
+		IsLottery:         info.NotShow,
 		AuthorLevel:       info.UserLevel,
 		IsNewbie:          info.URank < 10000,
 		IsMobileVerified:  info.MobileVerify == 1,

@@ -43,7 +43,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			slog.Warn("bili: parse danmaku info", "err", err)
 			return
 		}
-		slog.Debug("bili: danmaku", "user", info.Uname, "msg", info.Msg)
+		slog.Debug("bili: danmaku", "user", info.Uname, "msg", info.Msg, "lottery", info.NotShow)
 		b.Handler.OnDanmaku(info)
 
 	case "DANMU_MSG_MIRROR":
