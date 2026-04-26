@@ -1,122 +1,123 @@
-# danmu-go
+# bili-danmu-go
 
-A lightweight server that receives danmaku (弹幕) from Bilibili live rooms and displays them as a transparent chat overlay in OBS.
+A lightweight server that receives danmaku (弹幕) from Bilibili live rooms and streams them as a transparent OBS chat overlay.
 
-Port of the relay layer from [blivechat](https://github.com/xfgryujk/blivechat).
+Port of the relay layer from [xfgryujk/blivechat](github.com/xfgryujk/blivechat).
 
 ---
 
-## Quick Start (OBS streamer)
+## Quick Start
 
 ### 1. Download
 
-Grab the latest binary for your OS from the [Releases](../../releases) page:
+Grab the latest binary from the [Releases](../../releases) page.
 
 | OS | File |
 |---|---|
-| Windows | `danmu-go-windows-amd64.exe` |
-| macOS (Apple Silicon) | `danmu-go-darwin-arm64` |
-| macOS (Intel) | `danmu-go-darwin-amd64` |
-| Linux | `danmu-go-linux-amd64` |
+| Windows | `bili-danmu-windows-amd64.exe` |
+| macOS (Apple Silicon) | `bili-danmu-darwin-arm64` |
+| macOS (Intel) | `bili-danmu-darwin-amd64` |
+| Linux | `bili-danmu-linux-amd64` |
 
-### 2. Run the server
+### 2. Run
 
-**Windows:** Double-click the `.exe`. A console window opens and shows:
-```
-  danmu-go running → http://127.0.0.1:12450
-```
+**Windows:** Double-click the `.exe`.
 
-**macOS:** The binary is not code-signed, so Gatekeeper will block it on first run. Open a terminal and run:
+**macOS:** Strip the quarantine flag first:
+
 ```sh
-chmod +x danmu-go-darwin-arm64        # make it executable (first time only)
-xattr -d com.apple.quarantine danmu-go-darwin-arm64  # allow it to run
-./danmu-go-darwin-arm64
+chmod +x bili-danmu-darwin-arm64
+xattr -d com.apple.quarantine bili-danmu-darwin-arm64
+./bili-danmu-darwin-arm64
 ```
 
-Keep the window open while streaming.
+The server starts at `http://127.0.0.1:12450`.
 
-### 3. Find your Bilibili room ID
+### 3. Add to OBS
 
-Open your live room in a browser. The room ID is the number in the URL:
+1. **Sources → + → Browser**
+2. URL: `http://127.0.0.1:12450/obs/?roomId=12345` (replace with your room ID)
+3. Size: match your overlay area (e.g. 400 × 800)
+4. Check **"Shutdown source when not visible"**
 
-```
-https://live.bilibili.com/12345   →   room ID is 12345
-```
-
-### 4. Add to OBS
-
-1. In OBS → **Sources** → **+** → **Browser**.
-2. Set the URL to:
-   ```
-   http://127.0.0.1:12450/obs/?roomId=12345
-   ```
-   (replace `12345` with your room ID)
-3. Set width/height to match your overlay area (e.g. 400 × 800).
-4. Check **"Shutdown source when not visible"** to pause when the scene is inactive.
-5. Click **OK**. The chat overlay appears with a transparent background.
-
-> **Preview without OBS:** paste the URL directly into any browser to see the overlay on a checkerboard background.
+> Preview in a browser: paste the same URL into any browser tab.
 
 ---
 
-## OBS overlay options
+## Configuration
 
-Append options to the URL as needed:
-
-| Parameter | Values | Description |
-|---|---|---|
-| `roomId` | integer | **Required.** Bilibili live room ID. |
-| `theme` | `plain` (default) · `bubble` · `bubble-light` | Visual theme. Bubble themes show user avatars. |
-| `filterLottery` | `1` | Hide lottery/raffle danmaku. |
-
-Example with all options:
-```
-http://127.0.0.1:12450/obs/?roomId=12345&theme=bubble&filterLottery=1
-```
-
-### Layout
-
-- **Top zone** — Pinned Super Chat cards (≥¥30), colored by price tier, auto-removed after their paid duration.
-- **Bottom zone** — Scrolling danmaku list, newest at the bottom. Badges for owner / admin / guard ranks. Medal name/level shown inline.
-
----
-
-## Configuration (optional)
-
-On first run, a `data/config.ini` file is created automatically. Open it with any text editor to change settings:
-
-```ini
-[server]
-; Listening address.
-;   127.0.0.1  — only this computer can connect (default, recommended)
-;   0.0.0.0    — allow other devices on your local network
-host = 127.0.0.1
-
-; Port number. Change this if 12450 is already in use on your system.
-port = 12450
-```
-
-Restart the server after editing.
-
----
-
-## Troubleshooting
-
-**The overlay shows "Add `?roomId=12345` to the URL"**  
-→ The `roomId` parameter is missing from the OBS browser source URL.
-
-**The overlay shows "Disconnected — reconnecting…"**  
-→ The server isn't running, or the room ID is wrong. Check that `danmu-go` is still open in the terminal.
-
-**Port 12450 is already in use**  
-→ Change the port in `data/config.ini` and update the OBS URL to match.
-
-**Logs** — if something goes wrong, share the log file:
+On first run, a config file is created automatically:
 
 | OS | Path |
 |---|---|
-| macOS / Linux | `/tmp/danmu-go.log` |
-| Windows | `%TEMP%\danmu-go.log` |
+| Windows | `%APPDATA%\bili-danmu-go\config.ini` |
+| macOS | `~/Library/Application Support/bili-danmu-go/config.ini` |
+| Linux | `~/.config/bili-danmu-go/config.ini` |
+
+```ini
+[server]
+host = 127.0.0.1   ; use 0.0.0.0 to allow other devices on the LAN
+port = 12450
+
+[log]
+level = info       ; debug, info, warn, error
+
+[bilibili]
+; sessdata =
+```
+
+Override `sessdata` with the `SESSDATA` environment variable. Restart the server after editing.
+
+---
+
+## Development
+
+### Prerequisites
+
+- Go 1.21+, pnpm
+
+### Run locally (without embedding)
+
+```sh
+# Terminal 1 — Go backend
+go run .
+
+# Terminal 2 — Svelte watch build
+cd apps/obs-plugin && pnpm install && pnpm build:watch
+```
+
+Open `http://127.0.0.1:12450/obs/?roomId=<ROOM_ID>` in a browser and refresh after Svelte changes.
+
+### Build a self-contained binary
+
+```sh
+# Using Task (recommended)
+task build
+
+# Manual
+cd apps/obs-plugin && pnpm install && pnpm build && cd ../..
+cd apps/admin-web  && pnpm install && pnpm build && cd ../..
+go build -tags obs -o bili-danmu-$(go env GOOS)-$(go env GOARCH) .
+```
+
+### Lint
+
+```sh
+gofumpt -w .
+golangci-lint run ./...
+```
+
+### Project layout
+
+```
+├── main.go                   # Entry point
+├── config/config.go          # Config (host, port, sessdata)
+├── server/server.go          # HTTP server with graceful shutdown
+├── api/                      # HTTP handlers (SSE, avatar proxy, config)
+└── internal/
+    ├── bili/                 # Bilibili WS client (WBI signing, frame codec, reconnect)
+    └── chat/                 # Room manager, SSE fan-out, message translation
+```
 
 ---
 
@@ -178,82 +179,6 @@ es.onerror = () => console.error('SSE disconnected')
 Avatar images from Bilibili's CDN are blocked by browsers due to CORS. The server exposes `/api/avatar?url=<encoded-url>` to fetch images server-side. The OBS overlay rewrites all `avatarUrl` values through this proxy automatically.
 
 ---
-
-## Development
-
-### Prerequisites
-
-- Go 1.21+
-
-### Project layout
-
-```
-danmu-go/
-├── main.go                        # Entry point — wires config, room manager, HTTP server
-├── config/config.go               # Config struct and defaults (host, port)
-├── server/server.go               # HTTP server with graceful shutdown
-├── api/
-│   ├── chat.go                    # GET /api/chat/stream SSE handler
-│   └── avatar.go                  # GET /api/avatar?url=… avatar proxy (bypasses Bilibili CORS)
-└── internal/
-    ├── bili/
-    │   ├── frame.go               # Binary frame encode/decode, zlib/brotli decompress
-    │   ├── models.go              # Raw Bilibili message structs (DanmakuInfo, GiftData, …)
-    │   ├── client.go              # BLiveClient: WBI sign, init sequence, WSS, heartbeat, reconnect
-    │   └── handler.go             # HandlerInterface + BaseHandler dispatch
-    └── chat/
-        ├── models.go              # SSE event structs (AddTextEvent, AddGiftEvent, …)
-        ├── client_room.go         # Per-room SSE fan-out to subscriber channels
-        ├── room_manager.go        # Room lifecycle: start on first sub, teardown after 10 s idle
-        └── msg_handler.go         # Translates Bilibili messages → SSE events
-```
-
-### Build
-
-```sh
-go build .
-./danmu-go
-```
-
-### Build with embedded overlay
-
-```sh
-cd apps/obs-plugin && pnpm install && pnpm build
-cd ../..
-go build -tags obs .
-```
-
-> **Without `-tags obs`** the server serves `/obs/` from `apps/obs-plugin/build/` on disk — ideal for development.
-
-### Develop the overlay
-
-**Terminal 1 — Go backend:**
-```sh
-go run .
-```
-
-**Terminal 2 — Svelte watch build:**
-```sh
-cd apps/obs-plugin
-pnpm build:watch
-```
-
-Open `http://127.0.0.1:12450/obs/?roomId=<ROOM_ID>` in a browser. After editing a Svelte file, Vite rebuilds in ~100 ms — just refresh the tab to see the change.
-
-> `pnpm dev` starts a Vite HMR server on port 5173, but it can't reach the Go SSE API (different origin). Use `build:watch` + the Go server for end-to-end testing.
-
-### Lint / format
-
-```sh
-gofumpt -w .
-golangci-lint run ./...
-```
-
-### Adding a new SSE event type
-
-1. Add a struct to `internal/chat/models.go`
-2. Handle the source Bilibili command in `internal/chat/msg_handler.go`
-3. Call `h.broadcast("event_name", ev)`
 
 ### Roadmap
 

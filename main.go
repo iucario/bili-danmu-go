@@ -13,13 +13,23 @@ import (
 	"github.com/iucario/bili-danmu-go/api"
 	"github.com/iucario/bili-danmu-go/config"
 	"github.com/iucario/bili-danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/bili"
 	"github.com/iucario/bili-danmu-go/internal/chat"
 	"github.com/iucario/bili-danmu-go/internal/version"
 	"github.com/iucario/bili-danmu-go/server"
 )
 
+func defaultConfigPath() string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		// Fallback to relative path if the OS doesn't provide a config dir.
+		return filepath.Join("data", "config.ini")
+	}
+	return filepath.Join(dir, "bili-danmu-go", "config.ini")
+}
+
 func main() {
-	configPath := flag.String("config", filepath.Join("data", "config.ini"),
+	configPath := flag.String("config", defaultConfigPath(),
 		"path to config file (created with defaults if missing)")
 	flag.Parse()
 
@@ -36,6 +46,8 @@ func main() {
 		defer func() { _ = logFile.Close() }()
 	}
 	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel, "version", version.Version)
+
+	bili.SetSESSDATA(cfg.SESSDATA)
 
 	rm := chat.NewRoomManager()
 	cs := appconfig.New()
@@ -54,7 +66,7 @@ func main() {
 	slog.Info("goodbye")
 }
 
-// openLogFile creates (or appends to) danmu-go.log in the OS temp directory
+// openLogFile creates (or appends to) bili-danmu-go.log in the OS temp directory
 // and configures slog to write to both stderr and the file.
 // Returns the file so the caller can defer-close it; returns nil on failure.
 //
@@ -73,7 +85,7 @@ func openLogFile(levelStr string) *os.File {
 	default:
 		level = slog.LevelInfo
 	}
-	logPath := filepath.Join(os.TempDir(), "danmu-go.log")
+	logPath := filepath.Join(os.TempDir(), "bili-danmu-go.log")
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		slog.Warn("could not open log file", "path", logPath, "err", err)
