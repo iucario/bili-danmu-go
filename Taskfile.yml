@@ -1,0 +1,106 @@
+version: "3"
+
+vars:
+  # {{OS}} and {{ARCH}} are Task built-ins matching Go's GOOS/GOARCH values.
+  EXT: "{{if eq OS \"windows\"}}.exe{{end}}"
+  BINARY: "bili-danmu-{{OS}}-{{ARCH}}{{.EXT}}"
+  # Override on the CLI: task build-go VERSION=v1.2.3
+  VERSION: "{{default \"dev\" .VERSION}}"
+  MODULE: github.com/iucario/bili-danmu-go/internal/version.Version
+  # -H windowsgui suppresses the console window; only valid on Windows.
+  GUI_FLAG: "{{if eq OS \"windows\"}} -H windowsgui{{end}}"
+
+tasks:
+  default:
+    silent: true
+    cmds:
+      - task --list
+
+  build:
+    desc: Build everything (frontend + Go binary)
+    cmds:
+      - task: build-obs
+      - task: build-admin
+      - task: build-go
+
+  build-obs:
+    desc: Install deps and build the OBS overlay frontend
+    dir: apps/obs-plugin
+    sources:
+      - src/**/*
+      - package.json
+      - pnpm-lock.yaml
+    generates:
+      - build/**/*
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm build
+
+  build-admin:
+    desc: Install deps and build the admin web frontend
+    dir: apps/admin-web
+    sources:
+      - src/**/*
+      - package.json
+      - pnpm-lock.yaml
+    generates:
+      - build/**/*
+    cmds:
+      - pnpm install --frozen-lockfile
+      - pnpm build
+
+  build-go:
+    desc: Compile the Go binary with embedded frontends (requires build-obs and
+      build-admin)
+    cmds:
+      - go build -tags obs -ldflags "-X '{{.MODULE}}={{.VERSION}}'{{.GUI_FLAG}}"
+        -o {{.BINARY}} .
+
+  run:
+    desc: Build everything and run the binary
+    cmds:
+      - task: build
+      - "./{{.BINARY}}"
+
+  run-dev:
+    desc: Build and run without windowsgui so logs stream directly to the terminal
+    cmds:
+      - go build -tags obs -ldflags "-X '{{.MODULE}}={{.VERSION}}'" -o
+        {{.BINARY}} .
+      - "./{{.BINARY}}"
+
+  logs:
+    desc: Tail the live log file written by the running binary
+    cmds:
+      - cmd: powershell -NoProfile -Command "Get-Content \$env:TEMP/danmu-go.log -Wait
+          -Tail 100"
+        platforms: [ windows ]
+      - cmd: tail -f /tmp/danmu-go.log
+        platforms: [ linux, darwin ]
+
+  kill:
+    desc: Kill any running bili-danmu process
+    cmds:
+      - cmd: powershell -NoProfile -Command "Stop-Process -Name 'bili-danmu*' -Force
+          -ErrorAction SilentlyContinue"
+        platforms: [ windows ]
+      - cmd: pkill -f bili-danmu || true
+        platforms: [ linux, darwin ]
+
+  clean:
+    desc: Remove build outputs
+    cmds:
+      - cmd: Remove-Item -Force -ErrorAction SilentlyContinue {{.BINARY}}
+        platforms: [ windows ]
+      - cmd: rm -f {{.BINARY}}
+        platforms: [ linux, darwin ]
+      - cmd: Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          apps/obs-plugin/build
+        platforms: [ windows ]
+      - cmd: rm -rf apps/obs-plugin/build
+        platforms: [ linux, darwin ]
+      - cmd: Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+          apps/admin-web/build
+        platforms: [ windows ]
+      - cmd: rm -rf apps/admin-web/build
+        platforms: [ linux, darwin ]

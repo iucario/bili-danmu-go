@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//go:embed apps/obs-plugin/build
+//go:embed all:apps/obs-plugin/build
 var obsPluginFS embed.FS
 
 // obsHandler returns an http.Handler that serves the OBS overlay static site

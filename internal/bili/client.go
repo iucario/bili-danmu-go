@@ -23,6 +23,9 @@ import (
 // ErrTooManyRetries is returned after 30 consecutive reconnect failures.
 var ErrTooManyRetries = errors.New("too many retries connecting to Bilibili")
 
+// ErrRoomNotFound is returned when Bilibili reports the room does not exist.
+var ErrRoomNotFound = errors.New("room not found")
+
 // biliUserAgent must be consistent across all API calls and the WS handshake
 // because Bilibili binds the danmu token to the User-Agent it was issued for.
 const biliUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" +
@@ -159,11 +162,13 @@ func filterWbiChars(s string) string {
 // ---- Bilibili API responses ----
 
 type roomInfoResp struct {
-	Code int `json:"code"`
-	Data struct {
-		RoomID int64 `json:"room_id"`
-		UID    int64 `json:"uid"`
-	} `json:"data"`
+	Code int             `json:"code"`
+	Data json.RawMessage `json:"data"`
+}
+
+type roomInfoData struct {
+	RoomID int64 `json:"room_id"`
+	UID    int64 `json:"uid"`
 }
 
 type danmuInfoResp struct {
@@ -238,6 +243,13 @@ func (c *BLiveClient) runLoop() {
 			// Clean disconnect (stopCh was closed)
 			return
 		}
+		if errors.Is(err, ErrRoomNotFound) {
+			slog.Error("bili: room not found, stopping", "roomID", c.roomID)
+			if h, ok := c.handler.(interface{ OnFatalError(err error) }); ok {
+				h.OnFatalError(ErrRoomNotFound)
+			}
+			return
+		}
 
 		totalRetries++
 		if totalRetries >= 30 {
@@ -251,7 +263,7 @@ func (c *BLiveClient) runLoop() {
 
 		interval := time.Duration(min(1+(totalRetries-1)*2, 20))*time.Second +
 			time.Duration(rand.Intn(3000))*time.Millisecond
-		slog.Info("bili: reconnecting", "roomID", c.roomID, "retry", totalRetries, "in", interval)
+		slog.Info("bili: reconnecting", "roomID", c.roomID, "retry", totalRetries, "in", interval, "err", err)
 
 		select {
 		case <-c.stopCh:
@@ -454,7 +466,15 @@ func (c *BLiveClient) getRoomInfo() (roomID, uid int64, err error) {
 	if result.Code != 0 {
 		return 0, 0, fmt.Errorf("get_info code=%d", result.Code)
 	}
-	return result.Data.RoomID, result.Data.UID, nil
+	// Bilibili returns data as [] (empty array) when the room doesn't exist.
+	if len(result.Data) == 0 || result.Data[0] == '[' {
+		return 0, 0, ErrRoomNotFound
+	}
+	var data roomInfoData
+	if err := json.Unmarshal(result.Data, &data); err != nil {
+		return 0, 0, fmt.Errorf("getRoomInfo data decode: %w", err)
+	}
+	return data.RoomID, data.UID, nil
 }
 
 type hostEntry struct {
