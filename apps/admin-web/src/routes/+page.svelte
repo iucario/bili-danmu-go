@@ -12,7 +12,7 @@
 	let activeTab = $state<Tab>('config');
 	let roomId = $state('');
 	let theme = $state('plain');
-	let filterLottery = $state(false);
+	let filterLottery = $state(true);
 	let copied = $state(false);
 	let backendHost = $state('');
 	let backendPort = $state('12450');
@@ -26,8 +26,8 @@
 
 	const THEMES = [
 		{ value: 'plain', label: '简洁' },
-		{ value: 'bubble', label: '气泡' },
-		{ value: 'bubble-light', label: '气泡（浅色）' }
+		{ value: 'bubble', label: '气泡(深色)' },
+		{ value: 'bubble-light', label: '气泡(浅色)' }
 	];
 	const LOG_LEVELS = [
 		{ value: 'debug', label: 'Debug' },
@@ -36,8 +36,8 @@
 		{ value: 'error', label: 'Error' }
 	];
 	const TAB_LABELS: Record<Tab, string> = {
-		config: '配置',
-		backend: '后端',
+		config: '直播间设置',
+		backend: '配置',
 		preview: '预览',
 		help: '使用说明',
 		about: '关于'
@@ -126,7 +126,7 @@
 </script>
 
 <div class="min-h-screen bg-[#1e1e1e] text-[#e3e3e3]">
-	<div class="flex justify-center border-b border-[#3a3a3a]">
+	<div class="mx-auto flex max-w-2xl justify-center border-b border-[#3a3a3a]">
 		{#each ['config', 'backend', 'preview', 'help', 'about'] as Tab[] as tab}
 			<button
 				class="px-6 py-3 text-sm font-medium transition-colors {activeTab === tab
@@ -140,7 +140,7 @@
 	</div>
 
 	{#if activeTab === 'config'}
-		<div class="mx-auto max-w-lg px-6 py-8">
+		<div class="mx-auto max-w-2xl px-6 py-8">
 			<h2 class="mb-6 text-base font-semibold text-[#ccc]">OBS 浏览器源设置</h2>
 
 			<div class="space-y-5">
@@ -148,7 +148,7 @@
 					<label class="mb-1.5 block text-sm text-[#aaa]" for="roomId">直播间号</label>
 					<input
 						id="roomId"
-						type="number"
+						type="text"
 						min="1"
 						placeholder="例如：12345"
 						bind:value={roomId}
@@ -209,9 +209,7 @@
 			<div class="mb-6 flex items-start justify-between gap-4">
 				<div>
 					<h2 class="text-base font-semibold text-[#ccc]">后端配置</h2>
-					<p class="mt-2 text-sm text-[#888]">
-						GET 导出配置，POST 导入配置，PATCH 可单独更新 SESSDATA。
-					</p>
+					<p class="mt-2 text-sm text-[#888]">更新配置后需要重启后端服务器。</p>
 				</div>
 				<button
 					onclick={loadBackendConfig}
@@ -332,7 +330,7 @@
 			{/if}
 		</div>
 	{:else if activeTab === 'help'}
-		<div class="mx-auto max-w-lg px-6 py-8">
+		<div class="mx-auto max-w-2xl px-6 py-8">
 			<h2 class="mb-5 text-base font-semibold text-[#ccc]">使用说明</h2>
 			<ol class="space-y-4 text-sm text-[#aaa]">
 				<li class="flex gap-3">
@@ -367,7 +365,7 @@
 			</ol>
 		</div>
 	{:else if activeTab === 'about'}
-		<div class="mx-auto max-w-lg px-6 py-8">
+		<div class="mx-auto max-w-2xl px-6 py-8">
 			<h2 class="mb-4 text-base font-semibold text-[#ccc]">关于</h2>
 			<p class="text-sm text-[#aaa]">
 				<strong class="text-[#ccc]">bili-danmu-go</strong> — 基于 Go 的 Bilibili 直播弹幕转发服务器。
