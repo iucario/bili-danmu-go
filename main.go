@@ -50,7 +50,12 @@ func main() {
 	bili.SetSESSDATA(cfg.SESSDATA)
 
 	rm := chat.NewRoomManager()
-	cs := appconfig.New()
+	cs := appconfig.New(*configPath, cfg, func(prev, next *config.Config) error {
+		if prev.SESSDATA != next.SESSDATA {
+			bili.SetSESSDATA(next.SESSDATA)
+		}
+		return nil
+	})
 
 	mux := http.NewServeMux()
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))

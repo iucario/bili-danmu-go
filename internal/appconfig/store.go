@@ -2,42 +2,72 @@ package appconfig
 
 import (
 	"sync"
+
+	"github.com/iucario/bili-danmu-go/config"
 )
 
-// AppConfig holds user-configurable runtime settings.
-// Add fields here as new admin-configurable items are introduced (e.g. chat filters).
-type AppConfig struct{}
+// OnChangeFunc applies runtime side effects when config values change.
+type OnChangeFunc func(prev, next *config.Config) error
 
-// Store is a thread-safe in-memory config store.
+// Store persists config changes and applies supported runtime updates.
 type Store struct {
-	mu  sync.RWMutex
-	cfg AppConfig
+	mu       sync.RWMutex
+	path     string
+	current  config.Config
+	onChange OnChangeFunc
 }
 
-// New returns a Store initialised with default values.
-func New() *Store {
-	return &Store{}
+// New returns a Store initialised with the current active config.
+func New(path string, current *config.Config, onChange OnChangeFunc) *Store {
+	initial := config.Default()
+	if current != nil {
+		initial = current
+	}
+
+	return &Store{
+		path:     path,
+		current:  *initial,
+		onChange: onChange,
+	}
 }
 
-// Get returns a snapshot of the current config.
-func (s *Store) Get() AppConfig {
+// LoadEditable reads the config file values without environment overrides.
+func (s *Store) LoadEditable() (*config.Config, error) {
+	return config.LoadEditable(s.path)
+}
+
+// Get returns the currently active config after environment overrides.
+func (s *Store) Get() config.Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.cfg
+	return s.current
 }
 
-// Set replaces the entire config after validating all fields.
-func (s *Store) Set(cfg AppConfig) error {
+// Save writes the config file and applies any hot-reloadable runtime changes.
+func (s *Store) Save(next config.Config) (*config.Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.cfg = cfg
-	return nil
-}
 
-// Patch merges non-zero fields from patch into the current config.
-func (s *Store) Patch(patch AppConfig) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.cfg = patch
-	return nil
+	if err := next.Save(s.path); err != nil {
+		return nil, err
+	}
+
+	editable, err := config.LoadEditable(s.path)
+	if err != nil {
+		return nil, err
+	}
+	active, err := config.Load(s.path)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.onChange != nil {
+		err := s.onChange(&s.current, active)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	s.current = *active
+	return editable, nil
 }
