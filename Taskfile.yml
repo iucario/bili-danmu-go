@@ -72,10 +72,10 @@ tasks:
   logs:
     desc: Tail the live log file written by the running binary
     cmds:
-      - cmd: powershell -NoProfile -Command "Get-Content \$env:TEMP/danmu-go.log -Wait
-          -Tail 100"
+      - cmd: powershell -NoProfile -Command "Get-Content \$env:TEMP/bili-danmu-go.log
+          -Wait -Tail 100"
         platforms: [ windows ]
-      - cmd: tail -f /tmp/danmu-go.log
+      - cmd: tail -f /tmp/bili-danmu-go.log
         platforms: [ linux, darwin ]
 
   kill:
