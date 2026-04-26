@@ -8,7 +8,7 @@ import (
 	"net/http"
 )
 
-//go:embed apps/admin-web/build
+//go:embed all:apps/admin-web/build
 var adminWebFS embed.FS
 
 // adminHandler returns an http.Handler that serves the admin UI static site
