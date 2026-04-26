@@ -13,6 +13,7 @@ type Config struct {
 	Host     string
 	Port     int
 	LogLevel string // "debug", "info", "warn", "error"
+	SESSDATA string // Bilibili login cookie — enables full danmaku delivery
 }
 
 // Default returns safe defaults used when no config file exists.
@@ -37,6 +38,11 @@ port = 12450
 [log]
 ; Log level: debug, info, warn, error. Override with LOG_LEVEL env var.
 level = info
+
+[bilibili]
+; Your Bilibili SESSDATA cookie value (from browser DevTools → Application → Cookies).
+; Without this, Bilibili only delivers a fraction of danmaku in busy rooms.
+; sessdata =
 `
 
 // Load reads config from path.
@@ -75,6 +81,12 @@ func Load(path string) (*Config, error) {
 	// Environment variable takes precedence over config file.
 	if v := os.Getenv("LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v
+	}
+
+	b := f.Section("bilibili")
+	cfg.SESSDATA = b.Key("sessdata").MustString("")
+	if v := os.Getenv("SESSDATA"); v != "" {
+		cfg.SESSDATA = v
 	}
 
 	return cfg, nil

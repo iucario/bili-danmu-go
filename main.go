@@ -13,6 +13,7 @@ import (
 	"github.com/iucario/bili-danmu-go/api"
 	"github.com/iucario/bili-danmu-go/config"
 	"github.com/iucario/bili-danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/bili"
 	"github.com/iucario/bili-danmu-go/internal/chat"
 	"github.com/iucario/bili-danmu-go/internal/version"
 	"github.com/iucario/bili-danmu-go/server"
@@ -36,6 +37,8 @@ func main() {
 		defer func() { _ = logFile.Close() }()
 	}
 	slog.Info("config loaded", "path", *configPath, "log_level", cfg.LogLevel, "version", version.Version)
+
+	bili.SetSESSDATA(cfg.SESSDATA)
 
 	rm := chat.NewRoomManager()
 	cs := appconfig.New()

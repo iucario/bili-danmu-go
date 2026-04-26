@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -39,6 +40,7 @@ var (
 	sharedJar     http.CookieJar
 	sharedHC      *http.Client
 	sharedWBI     *wbiSigner
+	sharedUID     atomic.Int64 // logged-in viewer UID, 0 if anonymous
 )
 
 func getShared() (http.CookieJar, *http.Client, *wbiSigner) {
@@ -214,6 +216,39 @@ func NewBLiveClient(roomID int64, handler HandlerInterface) *BLiveClient {
 	}
 }
 
+// SetSESSDATA seeds the shared cookie jar with the user's Bilibili login cookie
+// so all subsequent API calls and WebSocket auth frames are authenticated.
+// Must be called before any BLiveClient is started.
+func SetSESSDATA(sessdata string) {
+	if sessdata == "" {
+		return
+	}
+	_, _, _ = getShared() // ensure jar is initialised
+	// Set the cookie for every bilibili.com host we talk to.
+	hosts := []string{
+		"https://bilibili.com",
+		"https://www.bilibili.com",
+		"https://api.bilibili.com",
+		"https://api.live.bilibili.com",
+		"https://passport.bilibili.com",
+	}
+	ck := &http.Cookie{Name: "SESSDATA", Value: sessdata, Path: "/"}
+	for _, h := range hosts {
+		u, _ := url.Parse(h)
+		sharedJar.SetCookies(u, []*http.Cookie{ck})
+	}
+	// Fetch viewer UID so we can send it in the WS auth frame.
+	go func() {
+		uid, err := getViewerUID(sharedHC)
+		if err != nil {
+			slog.Warn("bili: could not fetch viewer UID", "err", err)
+			return
+		}
+		sharedUID.Store(uid)
+		slog.Info("bili: SESSDATA loaded", "uid", uid)
+	}()
+}
+
 // Start begins the connection loop in a background goroutine.
 func (c *BLiveClient) Start() {
 	c.wg.Add(1)
@@ -312,10 +347,10 @@ func (c *BLiveClient) connect() error {
 	defer func() { _ = conn.Close() }()
 
 	// Step 4b: send AUTH frame.
-	// uid is the *viewer's* UID (0 = anonymous); ownerUID is the room owner's UID.
+	// Use the logged-in viewer UID when available; 0 = anonymous.
 	buvid3 := c.getBuvid3()
 	authBody, _ := json.Marshal(map[string]any{
-		"uid":      0,
+		"uid":      sharedUID.Load(),
 		"roomid":   realRoomID,
 		"protover": 3,
 		"platform": "web",
@@ -513,6 +548,26 @@ func (c *BLiveClient) getDanmuInfo(realRoomID int64) ([]hostEntry, string, error
 		hosts[i] = hostEntry{Host: h.Host, WssPort: h.WssPort}
 	}
 	return hosts, result.Data.Token, nil
+}
+
+// getViewerUID fetches the logged-in user's UID from the Bilibili nav API.
+func getViewerUID(hc *http.Client) (int64, error) {
+	req, _ := http.NewRequest("GET", "https://api.bilibili.com/x/web-interface/nav", nil)
+	setBiliHeaders(req)
+	resp, err := hc.Do(req)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	var result struct {
+		Data struct {
+			Mid int64 `json:"mid"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, err
+	}
+	return result.Data.Mid, nil
 }
 
 func setBiliHeaders(req *http.Request) {
