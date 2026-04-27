@@ -1,9 +1,11 @@
 package main
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -19,6 +21,9 @@ import (
 	"github.com/iucario/bili-danmu-go/server"
 )
 
+//go:embed api/index.html
+var indexFS embed.FS
+
 func defaultConfigPath() string {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -29,6 +34,11 @@ func defaultConfigPath() string {
 }
 
 func main() {
+	index, err := fs.Sub(indexFS, "api")
+	if err != nil {
+		slog.Error("failed to read embedded index.html", "err", err)
+		os.Exit(1)
+	}
 	configPath := flag.String("config", defaultConfigPath(),
 		"path to config file (created with defaults if missing)")
 	flag.Parse()
@@ -61,8 +71,10 @@ func main() {
 	mux.Handle("GET /api/chat/stream", api.NewChatHandler(rm))
 	mux.Handle("GET /api/avatar", api.NewAvatarProxyHandler())
 	mux.Handle("/api/config", api.NewConfigHandler(cs))
-	mux.Handle("/obs/", obsHandler())
-	mux.Handle("/admin/", adminHandler())
+	mux.Handle("GET /obs/", obsHandler())
+	mux.Handle("GET /admin/", adminHandler())
+
+	mux.Handle("GET /{$}", http.FileServer(http.FS(index)))
 
 	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
 		slog.Error("server stopped with error", "err", err)
