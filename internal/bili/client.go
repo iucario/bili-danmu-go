@@ -32,6 +32,8 @@ var ErrRoomNotFound = errors.New("room not found")
 const biliUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" +
 	" (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 
+const maxRetries = 10
+
 // sharedJar and sharedHTTPClient are shared across all BLiveClient instances so
 // that the buvid3 cookie (and any login cookies) obtained by one room's init
 // sequence are reused by all rooms, matching blivechat's single-session design.
@@ -216,13 +218,10 @@ func NewBLiveClient(roomID int64, handler HandlerInterface) *BLiveClient {
 	}
 }
 
-// SetSESSDATA seeds the shared cookie jar with the user's Bilibili login cookie
-// so all subsequent API calls and WebSocket auth frames are authenticated.
-// Must be called before any BLiveClient is started.
+// SetSESSDATA updates the shared cookie jar used by all Bilibili API calls and
+// future WebSocket auth frames. Existing live room connections must reconnect
+// to pick up the new cookie and viewer UID.
 func SetSESSDATA(sessdata string) {
-	if sessdata == "" {
-		return
-	}
 	_, _, _ = getShared() // ensure jar is initialised
 	// Set the cookie for every bilibili.com host we talk to.
 	hosts := []string{
@@ -233,6 +232,11 @@ func SetSESSDATA(sessdata string) {
 		"https://passport.bilibili.com",
 	}
 	ck := &http.Cookie{Name: "SESSDATA", Value: sessdata, Path: "/"}
+	if sessdata == "" {
+		ck.MaxAge = -1
+		ck.Expires = time.Unix(0, 0)
+		sharedUID.Store(0)
+	}
 	for _, h := range hosts {
 		u, _ := url.Parse(h)
 		sharedJar.SetCookies(u, []*http.Cookie{ck})
@@ -287,7 +291,7 @@ func (c *BLiveClient) runLoop() {
 		}
 
 		totalRetries++
-		if totalRetries >= 30 {
+		if totalRetries >= maxRetries {
 			slog.Error("bili: too many retries", "roomID", c.roomID)
 			// Signal fatal error upstream via a special handler call if supported.
 			if h, ok := c.handler.(interface{ OnFatalError(err error) }); ok {

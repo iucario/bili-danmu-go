@@ -58,19 +58,34 @@ jobs:
           cache: pnpm
           cache-dependency-path: apps/obs-plugin/pnpm-lock.yaml
 
-      - name: Install dependencies
+      - name: Install dependencies obs-plugin
         working-directory: apps/obs-plugin
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build obs-plugin
         working-directory: apps/obs-plugin
         run: pnpm build
 
-      - name: Upload frontend artifact
+      - name: Upload obs-plugin artifact
         uses: actions/upload-artifact@v7
         with:
           name: obs-plugin-build
           path: apps/obs-plugin/build
+          retention-days: 7
+
+      - name: Install dependencies admin-web
+        working-directory: apps/admin-web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build admin-web
+        working-directory: apps/admin-web
+        run: pnpm build
+
+      - name: Upload admin-web artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: admin-web-build
+          path: apps/admin-web/build
           retention-days: 7
 
   build:
@@ -122,11 +137,17 @@ jobs:
           $GITHUB_OUTPUT
         shell: bash
 
-      - name: Download frontend artifact
+      - name: Download obs-plugin artifact
         uses: actions/download-artifact@v8
         with:
           name: obs-plugin-build
           path: apps/obs-plugin/build
+
+      - name: Download admin-web artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: admin-web-build
+          path: apps/admin-web/build
 
       - name: Build binary
         run: |
