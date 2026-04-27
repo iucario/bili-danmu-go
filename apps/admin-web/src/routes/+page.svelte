@@ -320,7 +320,7 @@
 			{#if obsUrl}
 				<div
 					class="w-full max-w-2xl overflow-hidden rounded border border-[#3a3a3a] bg-black"
-					style="aspect-ratio: 16/9;"
+					style="aspect-ratio: 4/3;"
 				>
 					<iframe src={obsUrl} title="OBS 弹幕预览" class="h-full w-full border-0"></iframe>
 				</div>
