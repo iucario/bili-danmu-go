@@ -54,7 +54,7 @@ tasks:
       build-admin)
     cmds:
       - go build -tags obs -ldflags "-X '{{.MODULE}}={{.VERSION}}'{{.GUI_FLAG}}"
-        -o {{.BINARY}} .
+        -o dist/{{.BINARY}} .
 
   run:
     desc: Build everything and run the binary
