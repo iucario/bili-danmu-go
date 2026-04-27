@@ -15,7 +15,7 @@
 	let filterLottery = $state(true);
 	let copied = $state(false);
 	let backendHost = $state('127.0.0.1');
-	let backendPort = $state('12450');
+	let backendPort = $state('5090');
 	let backendLogLevel = $state('info');
 	let backendSessdata = $state('');
 	let backendLoading = $state(false);

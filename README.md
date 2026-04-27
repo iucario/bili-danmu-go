@@ -31,12 +31,12 @@ xattr -d com.apple.quarantine bili-danmu-darwin-arm64
 ./bili-danmu-darwin-arm64
 ```
 
-The server starts at `http://127.0.0.1:12450`.
+The server starts at `http://127.0.0.1:5090`.
 
 ### 3. Add to OBS
 
 1. **Sources → + → Browser**
-2. URL: `http://127.0.0.1:12450/obs/?roomId=12345` (replace with your room ID)
+2. URL: `http://127.0.0.1:5090/obs/?roomId=12345` (replace with your room ID)
 3. Size: match your overlay area (e.g. 400 × 800)
 4. Check **"Shutdown source when not visible"**
 
@@ -57,7 +57,7 @@ On first run, a config file is created automatically:
 ```ini
 [server]
 host = 127.0.0.1   ; use 0.0.0.0 to allow other devices on the LAN
-port = 12450
+port = 5090
 
 [log]
 level = info       ; debug, info, warn, error
@@ -86,7 +86,7 @@ go run .
 cd apps/obs-plugin && pnpm install && pnpm build:watch
 ```
 
-Open `http://127.0.0.1:12450/obs/?roomId=<ROOM_ID>` in a browser and refresh after Svelte changes.
+Open `http://127.0.0.1:5090/obs/?roomId=<ROOM_ID>` in a browser and refresh after Svelte changes.
 
 ### Build a self-contained binary
 
@@ -128,7 +128,7 @@ danmu-go exposes a simple HTTP API for building custom overlays or integrations.
 ### Connect to a room
 
 ```sh
-curl -N 'http://127.0.0.1:12450/api/chat/stream?roomId=<ROOM_ID>'
+curl -N 'http://127.0.0.1:5090/api/chat/stream?roomId=<ROOM_ID>'
 ```
 
 The server connects to Bilibili on first subscriber and tears down 10 s after the last subscriber disconnects.
@@ -165,7 +165,7 @@ data: {"id":"...","timestamp":1713800000,"authorName":"xfgryujk",
 ### Browser / TypeScript
 
 ```ts
-const es = new EventSource(`http://127.0.0.1:12450/api/chat/stream?roomId=${roomId}`)
+const es = new EventSource(`http://127.0.0.1:5090/api/chat/stream?roomId=${roomId}`)
 es.addEventListener('add_text', (e) => {
   const msg = JSON.parse(e.data)
   console.log(msg.authorName, msg.content)

@@ -35,7 +35,7 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 	if err := json.NewDecoder(getResp.Body).Decode(&initial); err != nil {
 		t.Fatalf("decode GET response: %v", err)
 	}
-	if initial.Host != "127.0.0.1" || initial.Port != 12450 || initial.LogLevel != "info" {
+	if initial.Host != "127.0.0.1" || initial.Port != 5090 || initial.LogLevel != "info" {
 		t.Fatalf("unexpected default config: %+v", initial)
 	}
 
