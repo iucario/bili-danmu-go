@@ -34,7 +34,7 @@ func defaultConfigPath() string {
 }
 
 func main() {
-	index, err := fs.Sub(indexFS, "api")
+	index, err := fs.Sub(indexFS, "internal/api")
 	if err != nil {
 		slog.Error("failed to read embedded index.html", "err", err)
 		os.Exit(1)
@@ -84,13 +84,15 @@ func main() {
 	slog.Info("goodbye")
 }
 
-// openLogFile creates (or appends to) bili-danmu-go.log in the OS temp directory
-// and configures slog to write to both stderr and the file.
-// Returns the file so the caller can defer-close it; returns nil on failure.
-//
-// Temp directory locations:
-//   - Linux/macOS: /tmp
-//   - Windows:     %TEMP% (e.g. C:\Users\<user>\AppData\Local\Temp)
+// bestEffortWriter silently discards write errors. Used to wrap os.Stderr so that a failed stderr write (e.g. on Windows GUI builds with no console) does not prevent writes to other io.MultiWriter targets.
+type bestEffortWriter struct{ w io.Writer }
+
+func (b *bestEffortWriter) Write(p []byte) (int, error) {
+	_, _ = b.w.Write(p)
+	return len(p), nil
+}
+
+// openLogFile creates (or appends to) bili-danmu-go.log in the OS temp directory and configures slog to write to both stderr and the file. Returns the file so the caller can defer-close it; returns nil on failure.
 func openLogFile(levelStr string) *os.File {
 	var level slog.Level
 	switch levelStr {
@@ -110,7 +112,8 @@ func openLogFile(levelStr string) *os.File {
 		return nil
 	}
 
-	w := io.MultiWriter(os.Stderr, f)
+	// Wrap stderr in a best-effort writer: on Windows GUI builds (-H windowsgui) os.Stderr is an invalid handle, and io.MultiWriter stops on the first error — meaning the file would never be written either. Silently dropping stderr errors lets the file writer always succeed.
+	w := io.MultiWriter(&bestEffortWriter{os.Stderr}, f)
 	slog.SetDefault(slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{
 		Level: level,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
