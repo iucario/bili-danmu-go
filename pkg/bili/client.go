@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -72,12 +71,23 @@ type BLiveClient struct {
 	wg     sync.WaitGroup
 }
 
+// Option configures a BLiveClient.
+type Option func(*BLiveClient)
+
+// WithBufferSize sets the capacity of the Events() channel (default: 64).
+// Increase this for high-traffic rooms to avoid dropped events.
+func WithBufferSize(n int) Option {
+	return func(c *BLiveClient) {
+		c.chanH = newChanHandlerSized(n)
+	}
+}
+
 // NewBLiveClient creates a client for the given room ID.
 // Call Events to receive the decoded live-room event stream.
-func NewBLiveClient(roomID int64) Client {
+func NewBLiveClient(roomID int64, opts ...Option) Client {
 	h := newChanHandler()
 	jar, hc, wbi := getShared()
-	return &BLiveClient{
+	c := &BLiveClient{
 		roomID: roomID,
 		chanH:  h,
 		hc:     hc,
@@ -85,12 +95,17 @@ func NewBLiveClient(roomID int64) Client {
 		jar:    jar,
 		stopCh: make(chan struct{}),
 	}
+	for _, o := range opts {
+		o(c)
+	}
+	return c
 }
 
 // Events returns a read-only channel of live-room events. The channel is
-// buffered (size 64) and closed when the client stops — either because Stop
-// was called or because a fatal connection error occurred. Call Err after the
-// channel closes to distinguish the two cases.
+// buffered (default size 64, configurable via WithBufferSize) and closed when
+// the client stops — either because Stop was called or because a fatal
+// connection error occurred. Call Err after the channel closes to distinguish
+// the two cases.
 func (c *BLiveClient) Events() <-chan Event {
 	return c.chanH.ch
 }
@@ -141,21 +156,18 @@ func (c *BLiveClient) runLoop() {
 			return
 		}
 		if errors.Is(err, ErrRoomNotFound) {
-			slog.Error("bili: room not found, stopping", "roomID", c.roomID)
 			c.chanH.OnFatalError(ErrRoomNotFound)
 			return
 		}
 
 		totalRetries++
 		if totalRetries >= maxRetries {
-			slog.Error("bili: too many retries", "roomID", c.roomID)
 			c.chanH.OnFatalError(ErrTooManyRetries)
 			return
 		}
 
 		interval := time.Duration(min(1+(totalRetries-1)*2, 20))*time.Second +
 			time.Duration(rand.Intn(3000))*time.Millisecond
-		slog.Debug("bili: reconnecting", "roomID", c.roomID, "retry", totalRetries, "in", interval, "err", err)
 
 		select {
 		case <-c.stopCh:
@@ -168,7 +180,7 @@ func (c *BLiveClient) runLoop() {
 // connect performs the full init sequence and runs the read loop until disconnect.
 func (c *BLiveClient) connect() error {
 	if err := c.fetchBuvid(); err != nil {
-		slog.Warn("bili: fetchBuvid", "err", err)
+		_ = err // non-fatal, continue without buvid
 	}
 
 	realRoomID, ownerUID, err := c.getRoomInfo()
@@ -250,7 +262,6 @@ func (c *BLiveClient) connect() error {
 
 		frames, err := DecodeFrames(data)
 		if err != nil {
-			slog.Warn("bili: decode frames", "err", err)
 			continue
 		}
 		for _, f := range frames {

@@ -2,7 +2,6 @@ package bili
 
 import (
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -57,11 +56,9 @@ func SetSESSDATA(sessdata string) {
 	go func() {
 		uid, err := getViewerUID(sharedHC)
 		if err != nil {
-			slog.Warn("bili: could not fetch viewer UID", "err", err)
 			return
 		}
 		sharedUID.Store(uid)
-		slog.Info("bili: SESSDATA loaded", "uid", uid)
 	}()
 }
 
