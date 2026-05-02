@@ -8,17 +8,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	appconfig "github.com/iucario/bili-danmu-go/config"
-	runtimeconfig "github.com/iucario/bili-danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/config"
 )
 
 func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.ini")
-	current, err := appconfig.Load(configPath)
+	current, err := config.Load(configPath)
 	if err != nil {
 		t.Fatalf("load initial config: %v", err)
 	}
-	store := runtimeconfig.New(configPath, current, func(prev, next *appconfig.Config) error {
+	store := config.New(configPath, current, func(prev, next *config.Config) error {
 		return nil
 	})
 	handler := NewConfigHandler(store)
@@ -31,15 +30,15 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 		t.Fatalf("GET status = %d, want %d", getResp.Code, http.StatusOK)
 	}
 
-	var initial appconfig.Config
+	var initial config.Config
 	if err := json.NewDecoder(getResp.Body).Decode(&initial); err != nil {
 		t.Fatalf("decode GET response: %v", err)
 	}
-	if initial.Host != "127.0.0.1" || initial.Port != 12450 || initial.LogLevel != "info" {
+	if initial.Host != "127.0.0.1" || initial.Port != 5090 || initial.LogLevel != "info" {
 		t.Fatalf("unexpected default config: %+v", initial)
 	}
 
-	body, err := json.Marshal(appconfig.Config{
+	body, err := json.Marshal(config.Config{
 		Host:     "0.0.0.0",
 		Port:     18080,
 		LogLevel: "warn",
@@ -57,7 +56,7 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 		t.Fatalf("POST status = %d, want %d body=%s", postResp.Code, http.StatusOK, postResp.Body.String())
 	}
 
-	var storedCfg appconfig.Config
+	var storedCfg config.Config
 	if err := json.NewDecoder(postResp.Body).Decode(&storedCfg); err != nil {
 		t.Fatalf("decode POST response: %v", err)
 	}
@@ -73,7 +72,7 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 		t.Fatalf("PATCH status = %d, want %d body=%s", patchResp.Code, http.StatusOK, patchResp.Body.String())
 	}
 
-	var patchedCfg appconfig.Config
+	var patchedCfg config.Config
 	if err := json.NewDecoder(patchResp.Body).Decode(&patchedCfg); err != nil {
 		t.Fatalf("decode PATCH response: %v", err)
 	}
@@ -81,7 +80,7 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 		t.Fatalf("unexpected patched sessdata: %+v", patchedCfg)
 	}
 
-	stored, err := appconfig.LoadEditable(configPath)
+	stored, err := config.LoadEditable(configPath)
 	if err != nil {
 		t.Fatalf("load saved config: %v", err)
 	}
@@ -92,11 +91,11 @@ func TestConfigHandlerReadsAndWritesConfigFile(t *testing.T) {
 
 func TestConfigHandlerRejectsInvalidConfig(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.ini")
-	current, err := appconfig.Load(configPath)
+	current, err := config.Load(configPath)
 	if err != nil {
 		t.Fatalf("load initial config: %v", err)
 	}
-	store := runtimeconfig.New(configPath, current, nil)
+	store := config.New(configPath, current, nil)
 	handler := NewConfigHandler(store)
 
 	body := []byte(`{"host":"127.0.0.1","port":70000,"logLevel":"info","sessdata":""}`)
@@ -111,11 +110,11 @@ func TestConfigHandlerRejectsInvalidConfig(t *testing.T) {
 
 func TestConfigHandlerRejectsInvalidPatch(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.ini")
-	current, err := appconfig.Load(configPath)
+	current, err := config.Load(configPath)
 	if err != nil {
 		t.Fatalf("load initial config: %v", err)
 	}
-	store := runtimeconfig.New(configPath, current, nil)
+	store := config.New(configPath, current, nil)
 	handler := NewConfigHandler(store)
 
 	req := httptest.NewRequest(http.MethodPatch, "/api/config", bytes.NewReader([]byte(`{"host":"127.0.0.1"}`)))

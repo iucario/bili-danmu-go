@@ -21,7 +21,7 @@ type Config struct {
 func Default() *Config {
 	return &Config{
 		Host:     "127.0.0.1",
-		Port:     12450,
+		Port:     5090,
 		LogLevel: "info",
 	}
 }
@@ -33,8 +33,8 @@ const defaultINI = `[server]
 ;   0.0.0.0    — allow other devices on your local network
 host = 127.0.0.1
 
-; Port number. Change this if 12450 is already in use on your system.
-port = 12450
+; Port number. Change this if 5090 is already in use on your system.
+port = 5090
 
 [log]
 ; Log level: debug, info, warn, error. Override with LOG_LEVEL env var.
