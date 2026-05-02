@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"sync/atomic"
 
 	"github.com/iucario/bili-danmu-go/pkg/bili"
 )
@@ -13,25 +12,17 @@ import (
 // startEventLoop wires up OnConnect on client, then starts a goroutine that reads events from client.Events(), converts them to SSE frames and broadcasts to room.
 // When the event channel closes the goroutine checks client.Err(); if it is non-nil it broadcasts a fatal_error SSE frame and calls onFatal.
 func startEventLoop(client bili.Client, room *ClientRoom, onFatal func()) {
-	var realRoomID atomic.Int64
-	var ownerUID atomic.Int64
-
-	client.SetOnConnect(func(r, u int64) {
-		realRoomID.Store(r)
-		ownerUID.Store(u)
-	})
-
 	go func() {
 		for ev := range client.Events() {
 			switch ev.Type {
 			case bili.EventTypeDanmaku:
-				handleDanmaku(ev.Danmaku, room, &realRoomID, &ownerUID)
+				handleDanmaku(ev.Danmaku, room, client.RealRoomID(), client.OwnerUID())
 			case bili.EventTypeGift:
-				handleGift(ev.Gift, room, &realRoomID)
+				handleGift(ev.Gift, room, client.RealRoomID())
 			case bili.EventTypeUserToastV2:
 				handleUserToastV2(ev.UserToastV2, room)
 			case bili.EventTypeSuperChat:
-				handleSuperChat(ev.SuperChat, room, &realRoomID)
+				handleSuperChat(ev.SuperChat, room, client.RealRoomID())
 			case bili.EventTypeSuperChatDelete:
 				handleSuperChatDelete(ev.SuperChatDelete, room)
 			}
@@ -48,7 +39,7 @@ func startEventLoop(client bili.Client, room *ClientRoom, onFatal func()) {
 	}()
 }
 
-func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUID *atomic.Int64) {
+func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUID int64) {
 	content := info.Msg
 
 	if len(info.ModeInfo) > 0 {
@@ -73,7 +64,7 @@ func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUI
 	avatarURL := avatarFromModeInfo(info.ModeInfo)
 
 	medalLevel, medalName := 0, ""
-	if info.MedalRoomID == realRoomID.Load() {
+	if info.MedalRoomID == realRoomID {
 		medalLevel = info.MedalLevel
 		medalName = info.MedalName
 	}
@@ -114,7 +105,7 @@ func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUI
 	})
 }
 
-func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID *atomic.Int64) {
+func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID int64) {
 	totalCoin, totalFreeCoin := 0, 0
 	if data.CoinType == "gold" {
 		totalCoin = data.TotalCoin
@@ -123,12 +114,12 @@ func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID *atomic.Int64)
 	}
 
 	medalLevel, medalName := 0, ""
-	if data.MedalInfo.AnchorRoomID == realRoomID.Load() {
+	if data.MedalInfo.AnchorRoomID == realRoomID {
 		medalLevel = data.MedalInfo.MedalLevel
 		medalName = data.MedalInfo.MedalName
 	}
 
-	broadcastEvent(room, "add_gift", AddGiftEvent{
+	broadcastEvent(room, "add_gift",AddGiftEvent{
 		ID:            newID(),
 		Timestamp:     data.Timestamp,
 		AuthorName:    data.Uname,
@@ -164,9 +155,9 @@ func handleUserToastV2(data *bili.UserToastV2Data, room *ClientRoom) {
 	})
 }
 
-func handleSuperChat(data *bili.SuperChatData, room *ClientRoom, realRoomID *atomic.Int64) {
+func handleSuperChat(data *bili.SuperChatData, room *ClientRoom, realRoomID int64) {
 	medalLevel, medalName := 0, ""
-	if data.MedalInfo.AnchorRoomID == realRoomID.Load() {
+	if data.MedalInfo.AnchorRoomID == realRoomID {
 		medalLevel = data.MedalInfo.MedalLevel
 		medalName = data.MedalInfo.MedalName
 	}
@@ -193,8 +184,8 @@ func handleSuperChatDelete(data *bili.SuperChatDeleteData, room *ClientRoom) {
 	broadcastEvent(room, "del_super_chat", DelSuperChatEvent{IDs: ids})
 }
 
-func authorType(info *bili.DanmakuInfo, ownerUID *atomic.Int64) int {
-	if uid := ownerUID.Load(); uid != 0 && info.UID == uid {
+func authorType(info *bili.DanmakuInfo, ownerUID int64) int {
+	if ownerUID != 0 && info.UID == ownerUID {
 		return 3
 	}
 	if info.Admin == 1 {

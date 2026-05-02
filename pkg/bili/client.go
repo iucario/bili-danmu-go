@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -56,11 +57,10 @@ type hostEntry struct {
 
 // BLiveClient connects to a Bilibili live room and delivers decoded events on the channel returned by Events(). Call Start to begin the connection loop and Stop to shut it down cleanly.
 type BLiveClient struct {
-	roomID int64
-	chanH  *chanHandler
-
-	// OnConnect is called once per successful connection after the real room ID and owner UID are resolved. May be called again on reconnect.
-	OnConnect func(realRoomID, ownerUID int64)
+	roomID     int64
+	realRoomID atomic.Int64
+	ownerUID   atomic.Int64
+	chanH      *chanHandler
 
 	hc     *http.Client
 	wbi    *wbiSigner
@@ -122,10 +122,13 @@ func (c *BLiveClient) Err() error {
 	return *p
 }
 
-// SetOnConnect registers a callback invoked after each successful connection.
-func (c *BLiveClient) SetOnConnect(fn func(realRoomID, ownerUID int64)) {
-	c.OnConnect = fn
-}
+// RealRoomID returns the resolved real room ID after the first successful
+// connection, or 0 if not yet connected.
+func (c *BLiveClient) RealRoomID() int64 { return c.realRoomID.Load() }
+
+// OwnerUID returns the room owner's UID after the first successful
+// connection, or 0 if not yet connected.
+func (c *BLiveClient) OwnerUID() int64 { return c.ownerUID.Load() }
 
 // Start begins the connection loop in a background goroutine.
 func (c *BLiveClient) Start() {
@@ -188,9 +191,8 @@ func (c *BLiveClient) connect(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("getRoomInfo: %w", err)
 	}
-	if c.OnConnect != nil {
-		c.OnConnect(realRoomID, ownerUID)
-	}
+	c.realRoomID.Store(realRoomID)
+	c.ownerUID.Store(ownerUID)
 
 	hosts, token, err := c.getDanmuInfo(ctx, realRoomID)
 	if err != nil {

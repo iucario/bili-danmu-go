@@ -11,6 +11,8 @@ type Client interface {
 	Events() <-chan Event
 	// Err returns the fatal error that caused Events() to close, or nil for a clean stop. Only meaningful after the Events() channel has been closed.
 	Err() error
-	// SetOnConnect registers a callback invoked after each successful connection with the resolved real room ID and owner UID.
-	SetOnConnect(fn func(realRoomID, ownerUID int64))
+	// RealRoomID returns the resolved real room ID after the first successful connection, or 0 if not yet connected.
+	RealRoomID() int64
+	// OwnerUID returns the room owner's UID after the first successful connection, or 0 if not yet connected.
+	OwnerUID() int64
 }
