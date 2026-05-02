@@ -8,17 +8,16 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/iucario/bili-danmu-go/internal/config"
 )
 
-// Run starts the HTTP server and blocks until SIGINT or SIGTERM.
+// Run starts the HTTP server and blocks until ctx is cancelled.
 // onShutdown is called before the HTTP server stops accepting new connections,
 // allowing in-flight SSE rooms to broadcast a final message.
-func Run(cfg *config.Config, handler http.Handler, onShutdown func()) error {
+func Run(ctx context.Context, cfg *config.Config, handler http.Handler, onShutdown func()) error {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 
 	// baseCtx is the parent of every request context. Cancelling it causes all
@@ -46,18 +45,14 @@ func Run(cfg *config.Config, handler http.Handler, onShutdown func()) error {
 		close(errCh)
 	}()
 
-	// os.Interrupt = Ctrl-C on all platforms; SIGTERM for process managers on Unix.
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-
 	select {
 	case err := <-errCh:
 		if isAddrInUse(err) {
 			return fmt.Errorf("port %d is already in use — change 'port' in data/config.ini", cfg.Port)
 		}
 		return err
-	case sig := <-quit:
-		slog.Info("shutting down", "signal", sig)
+	case <-ctx.Done():
+		slog.Info("shutting down")
 	}
 
 	if onShutdown != nil {
