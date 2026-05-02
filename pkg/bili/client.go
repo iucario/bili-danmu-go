@@ -1,6 +1,7 @@
 package bili
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,7 +68,8 @@ type BLiveClient struct {
 	hc     *http.Client
 	wbi    *wbiSigner
 	jar    http.CookieJar
-	stopCh chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 	wg     sync.WaitGroup
 }
 
@@ -85,6 +87,7 @@ func WithBufferSize(n int) Option {
 // NewBLiveClient creates a client for the given room ID.
 // Call Events to receive the decoded live-room event stream.
 func NewBLiveClient(roomID int64, opts ...Option) Client {
+	ctx, cancel := context.WithCancel(context.Background())
 	h := newChanHandler()
 	jar, hc, wbi := getShared()
 	c := &BLiveClient{
@@ -93,7 +96,8 @@ func NewBLiveClient(roomID int64, opts ...Option) Client {
 		hc:     hc,
 		wbi:    wbi,
 		jar:    jar,
-		stopCh: make(chan struct{}),
+		ctx:    ctx,
+		cancel: cancel,
 	}
 	for _, o := range opts {
 		o(c)
@@ -134,7 +138,7 @@ func (c *BLiveClient) Start() {
 
 // Stop signals the client to disconnect and waits for cleanup.
 func (c *BLiveClient) Stop() {
-	close(c.stopCh)
+	c.cancel()
 	c.wg.Wait()
 }
 
@@ -146,12 +150,12 @@ func (c *BLiveClient) runLoop() {
 	totalRetries := 0
 	for {
 		select {
-		case <-c.stopCh:
+		case <-c.ctx.Done():
 			return
 		default:
 		}
 
-		err := c.connect()
+		err := c.connect(c.ctx)
 		if err == nil {
 			return
 		}
@@ -170,7 +174,7 @@ func (c *BLiveClient) runLoop() {
 			time.Duration(rand.Intn(3000))*time.Millisecond
 
 		select {
-		case <-c.stopCh:
+		case <-c.ctx.Done():
 			return
 		case <-time.After(interval):
 		}
@@ -178,12 +182,12 @@ func (c *BLiveClient) runLoop() {
 }
 
 // connect performs the full init sequence and runs the read loop until disconnect.
-func (c *BLiveClient) connect() error {
-	if err := c.fetchBuvid(); err != nil {
+func (c *BLiveClient) connect(ctx context.Context) error {
+	if err := c.fetchBuvid(ctx); err != nil {
 		_ = err // non-fatal, continue without buvid
 	}
 
-	realRoomID, ownerUID, err := c.getRoomInfo()
+	realRoomID, ownerUID, err := c.getRoomInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("getRoomInfo: %w", err)
 	}
@@ -191,7 +195,7 @@ func (c *BLiveClient) connect() error {
 		c.OnConnect(realRoomID, ownerUID)
 	}
 
-	hosts, token, err := c.getDanmuInfo(realRoomID)
+	hosts, token, err := c.getDanmuInfo(ctx, realRoomID)
 	if err != nil {
 		return fmt.Errorf("getDanmuInfo: %w", err)
 	}
@@ -233,7 +237,7 @@ func (c *BLiveClient) connect() error {
 			select {
 			case <-hbStop:
 				return
-			case <-c.stopCh:
+			case <-ctx.Done():
 				return
 			case <-ticker.C:
 				if err := conn.WriteMessage(websocket.BinaryMessage, hbFrame); err != nil {
@@ -245,7 +249,7 @@ func (c *BLiveClient) connect() error {
 
 	for {
 		select {
-		case <-c.stopCh:
+		case <-ctx.Done():
 			_ = conn.WriteMessage(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			return nil
@@ -304,8 +308,8 @@ func (c *BLiveClient) waitAuthReply(conn *websocket.Conn) error {
 
 // ---- HTTP helpers ----
 
-func (c *BLiveClient) fetchBuvid() error {
-	req, _ := http.NewRequest("GET", "https://www.bilibili.com/", nil)
+func (c *BLiveClient) fetchBuvid(ctx context.Context) error {
+	req, _ := http.NewRequestWithContext(ctx, "GET", "https://www.bilibili.com/", nil)
 	setBiliHeaders(req)
 	resp, err := c.hc.Do(req)
 	if err != nil {
@@ -326,10 +330,10 @@ func (c *BLiveClient) getBuvid3() string {
 	return ""
 }
 
-func (c *BLiveClient) getRoomInfo() (roomID, uid int64, err error) {
+func (c *BLiveClient) getRoomInfo(ctx context.Context) (roomID, uid int64, err error) {
 	endpoint := fmt.Sprintf(
 		"https://api.live.bilibili.com/room/v1/Room/get_info?room_id=%d", c.roomID)
-	req, _ := http.NewRequest("GET", endpoint, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	setBiliHeaders(req)
 	resp, err := c.hc.Do(req)
 	if err != nil {
@@ -355,7 +359,7 @@ func (c *BLiveClient) getRoomInfo() (roomID, uid int64, err error) {
 	return data.RoomID, data.UID, nil
 }
 
-func (c *BLiveClient) getDanmuInfo(realRoomID int64) ([]hostEntry, string, error) {
+func (c *BLiveClient) getDanmuInfo(ctx context.Context, realRoomID int64) ([]hostEntry, string, error) {
 	signed, err := c.wbi.Sign(map[string]string{
 		"id":   fmt.Sprintf("%d", realRoomID),
 		"type": "0",
@@ -364,7 +368,7 @@ func (c *BLiveClient) getDanmuInfo(realRoomID int64) ([]hostEntry, string, error
 		return nil, "", err
 	}
 	endpoint := "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?" + signed
-	req, _ := http.NewRequest("GET", endpoint, nil)
+	req, _ := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	setBiliHeaders(req)
 	resp, err := c.hc.Do(req)
 	if err != nil {
