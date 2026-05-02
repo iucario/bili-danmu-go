@@ -186,8 +186,6 @@ type danmuInfoResp struct {
 	} `json:"data"`
 }
 
-// ---- BLiveClient ----
-
 // BLiveClient connects to a Bilibili live room and dispatches messages.
 type BLiveClient struct {
 	roomID  int64 // user-supplied room ID (may be short ID)

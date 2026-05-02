@@ -15,9 +15,9 @@ import (
 	"github.com/iucario/bili-danmu-go/api"
 	"github.com/iucario/bili-danmu-go/config"
 	"github.com/iucario/bili-danmu-go/internal/appconfig"
-	"github.com/iucario/bili-danmu-go/internal/bili"
 	"github.com/iucario/bili-danmu-go/internal/chat"
 	"github.com/iucario/bili-danmu-go/internal/version"
+	"github.com/iucario/bili-danmu-go/pkg/bili"
 	"github.com/iucario/bili-danmu-go/server"
 )
 
