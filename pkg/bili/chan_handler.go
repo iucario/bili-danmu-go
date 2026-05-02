@@ -4,26 +4,45 @@ import (
 	"encoding/json"
 	"log/slog"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
-// HandlerInterface is implemented by types that want to receive
-// decoded Bilibili live messages.
-type HandlerInterface interface {
-	OnDanmaku(info *DanmakuInfo)
-	OnGift(data *GiftData)
-	OnUserToastV2(data *UserToastV2Data)
-	OnSuperChat(data *SuperChatData)
-	OnSuperChatDelete(data *SuperChatDeleteData)
+const defaultEventBufSize = 64
+
+// chanHandler routes every event to a buffered channel. It is the internal handler always used by BLiveClient.
+type chanHandler struct {
+	ch       chan Event
+	fatalErr atomic.Pointer[error]
+	once     sync.Once
 }
 
-// BaseHandler dispatches raw SEND_MSG_REPLY business messages to a HandlerInterface.
-// Embed or wrap it to receive decoded events.
-type BaseHandler struct {
-	Handler HandlerInterface
+func newChanHandler() *chanHandler {
+	return &chanHandler{ch: make(chan Event, defaultEventBufSize)}
 }
 
-// Dispatch parses a raw JSON business message and routes it to the handler.
-func (b *BaseHandler) Dispatch(raw []byte) {
+// send attempts a non-blocking write. If the buffer is full the event is
+// dropped with a warning rather than blocking the WebSocket read loop.
+func (h *chanHandler) send(ev Event) {
+	select {
+	case h.ch <- ev:
+	default:
+		slog.Warn("bili: event channel full, dropping event", "type", ev.Type)
+	}
+}
+
+func (h *chanHandler) close() {
+	h.once.Do(func() { close(h.ch) })
+}
+
+// OnFatalError satisfies the duck-typed interface checked by BLiveClient.
+func (h *chanHandler) OnFatalError(err error) {
+	h.fatalErr.Store(&err)
+	h.close()
+}
+
+// dispatch parses a raw SEND_MSG_REPLY JSON body and sends the decoded event.
+func (h *chanHandler) dispatch(raw []byte) {
 	var msg RawMessage
 	if err := json.Unmarshal(raw, &msg); err != nil {
 		slog.Warn("bili: failed to unmarshal raw message", "err", err)
@@ -44,7 +63,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		slog.Debug("bili: danmaku", "user", info.Uname, "msg", info.Msg, "lottery", info.NotShow)
-		b.Handler.OnDanmaku(info)
+		h.send(Event{Type: EventTypeDanmaku, Danmaku: info})
 
 	case "DANMU_MSG_MIRROR":
 		info, err := ParseDanmakuInfo(msg.Info)
@@ -54,7 +73,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 		}
 		info.IsMirror = true
 		slog.Debug("bili: danmaku_mirror", "user", info.Uname, "msg", info.Msg)
-		b.Handler.OnDanmaku(info)
+		h.send(Event{Type: EventTypeDanmaku, Danmaku: info})
 
 	case "SEND_GIFT":
 		var data GiftData
@@ -63,7 +82,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		slog.Debug("bili: gift", "user", data.Uname, "gift", data.GiftName, "num", data.Num)
-		b.Handler.OnGift(&data)
+		h.send(Event{Type: EventTypeGift, Gift: &data})
 
 	case "USER_TOAST_MSG_V2":
 		var data UserToastV2Data
@@ -72,7 +91,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		slog.Debug("bili: guard", "user", data.SenderUinfo.Base.Name, "level", data.GuardInfo.GuardLevel)
-		b.Handler.OnUserToastV2(&data)
+		h.send(Event{Type: EventTypeUserToastV2, UserToastV2: &data})
 
 	case "SUPER_CHAT_MESSAGE":
 		var data SuperChatData
@@ -81,7 +100,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		slog.Debug("bili: superchat", "user", data.UserInfo.Uname, "price", data.Price, "msg", data.Message)
-		b.Handler.OnSuperChat(&data)
+		h.send(Event{Type: EventTypeSuperChat, SuperChat: &data})
 
 	case "SUPER_CHAT_MESSAGE_DELETE":
 		var data SuperChatDeleteData
@@ -90,7 +109,7 @@ func (b *BaseHandler) Dispatch(raw []byte) {
 			return
 		}
 		slog.Debug("bili: superchat_delete", "ids", data.IDs)
-		b.Handler.OnSuperChatDelete(&data)
+		h.send(Event{Type: EventTypeSuperChatDelete, SuperChatDelete: &data})
 
 	default:
 		// Silently ignore unhandled commands (INTERACT_WORD_V2, WATCHED_CHANGE, etc.)

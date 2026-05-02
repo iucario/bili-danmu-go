@@ -12,11 +12,10 @@ import (
 const teardownDelay = 10 * time.Second
 
 type managedRoom struct {
-	room    *ClientRoom
-	client  *bili.BLiveClient
-	handler *LiveMsgHandler
-	timer   *time.Timer
-	nSubs   int
+	room   *ClientRoom
+	client bili.Client
+	timer  *time.Timer
+	nSubs  int
 }
 
 // RoomManager creates and tears down Bilibili live connections on demand.
@@ -95,17 +94,14 @@ func (m *RoomManager) StopAll() {
 // startRoom must be called with m.mu held.
 func (m *RoomManager) startRoom(roomID int64) *managedRoom {
 	room := NewClientRoom()
+	client := bili.NewBLiveClient(roomID)
 
 	onFatal := func() { m.teardown(roomID) }
-	handler := NewLiveMsgHandler(roomID, room, onFatal)
-
-	client := bili.NewBLiveClient(roomID, handler)
-	client.OnConnect = handler.OnConnect
+	startEventLoop(client, room, onFatal)
 
 	r := &managedRoom{
-		room:    room,
-		client:  client,
-		handler: handler,
+		room:   room,
+		client: client,
 	}
 	m.rooms[roomID] = r
 	client.Start()
