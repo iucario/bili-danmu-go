@@ -10,11 +10,8 @@ import (
 	"github.com/iucario/bili-danmu-go/pkg/bili"
 )
 
-// startEventLoop wires up OnConnect on client, then starts a goroutine that
-// reads events from client.Events(), converts them to SSE frames, and
-// broadcasts to room. When the event channel closes the goroutine checks
-// client.Err(); if it is non-nil it broadcasts a fatal_error SSE frame and
-// calls onFatal.
+// startEventLoop wires up OnConnect on client, then starts a goroutine that reads events from client.Events(), converts them to SSE frames and broadcasts to room.
+// When the event channel closes the goroutine checks client.Err(); if it is non-nil it broadcasts a fatal_error SSE frame and calls onFatal.
 func startEventLoop(client bili.Client, room *ClientRoom, onFatal func()) {
 	var realRoomID atomic.Int64
 	var ownerUID atomic.Int64

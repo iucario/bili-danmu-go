@@ -54,15 +54,12 @@ type hostEntry struct {
 	WssPort int
 }
 
-// BLiveClient connects to a Bilibili live room and delivers decoded events on
-// the channel returned by Events(). Call Start to begin the connection loop and
-// Stop to shut it down cleanly.
+// BLiveClient connects to a Bilibili live room and delivers decoded events on the channel returned by Events(). Call Start to begin the connection loop and Stop to shut it down cleanly.
 type BLiveClient struct {
 	roomID int64
 	chanH  *chanHandler
 
-	// OnConnect is called once per successful connection after the real room ID
-	// and owner UID are resolved. May be called again on reconnect.
+	// OnConnect is called once per successful connection after the real room ID and owner UID are resolved. May be called again on reconnect.
 	OnConnect func(realRoomID, ownerUID int64)
 
 	hc     *http.Client
