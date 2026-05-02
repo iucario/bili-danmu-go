@@ -300,7 +300,7 @@ func (c *BLiveClient) runLoop() {
 
 		interval := time.Duration(min(1+(totalRetries-1)*2, 20))*time.Second +
 			time.Duration(rand.Intn(3000))*time.Millisecond
-		slog.Info("bili: reconnecting", "roomID", c.roomID, "retry", totalRetries, "in", interval, "err", err)
+		slog.Debug("bili: reconnecting", "roomID", c.roomID, "retry", totalRetries, "in", interval, "err", err)
 
 		select {
 		case <-c.stopCh:
@@ -368,7 +368,6 @@ func (c *BLiveClient) connect() error {
 	if err := c.waitAuthReply(conn); err != nil {
 		return fmt.Errorf("auth reply: %w", err)
 	}
-	slog.Info("room connected", "roomID", c.roomID)
 
 	// Step 5: heartbeat goroutine — hbStop is closed when connect() returns,
 	// stopping the goroutine regardless of whether it was a clean or error exit.

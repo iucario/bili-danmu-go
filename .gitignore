@@ -1,3 +1,4 @@
 .task/
 *.code-workspace
 dist/
+.vscode/
