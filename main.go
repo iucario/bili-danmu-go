@@ -12,10 +12,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/iucario/bili-danmu-go/config"
 	"github.com/iucario/bili-danmu-go/internal/api"
-	"github.com/iucario/bili-danmu-go/internal/appconfig"
 	"github.com/iucario/bili-danmu-go/internal/chat"
+	"github.com/iucario/bili-danmu-go/internal/config"
 	"github.com/iucario/bili-danmu-go/internal/version"
 	"github.com/iucario/bili-danmu-go/pkg/bili"
 	"github.com/iucario/bili-danmu-go/server"
@@ -60,7 +59,7 @@ func main() {
 	bili.SetSESSDATA(cfg.SESSDATA)
 
 	rm := chat.NewRoomManager()
-	cs := appconfig.New(*configPath, cfg, func(prev, next *config.Config) error {
+	cs := config.New(*configPath, cfg, func(prev, next *config.Config) error {
 		if prev.SESSDATA != next.SESSDATA {
 			bili.SetSESSDATA(next.SESSDATA)
 		}

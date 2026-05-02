@@ -1,25 +1,23 @@
-package appconfig
+package config
 
 import (
 	"sync"
-
-	"github.com/iucario/bili-danmu-go/config"
 )
 
 // OnChangeFunc applies runtime side effects when config values change.
-type OnChangeFunc func(prev, next *config.Config) error
+type OnChangeFunc func(prev, next *Config) error
 
 // Store persists config changes and applies supported runtime updates.
 type Store struct {
 	mu       sync.RWMutex
 	path     string
-	current  config.Config
+	current  Config
 	onChange OnChangeFunc
 }
 
 // New returns a Store initialised with the current active config.
-func New(path string, current *config.Config, onChange OnChangeFunc) *Store {
-	initial := config.Default()
+func New(path string, current *Config, onChange OnChangeFunc) *Store {
+	initial := Default()
 	if current != nil {
 		initial = current
 	}
@@ -32,19 +30,19 @@ func New(path string, current *config.Config, onChange OnChangeFunc) *Store {
 }
 
 // LoadEditable reads the config file values without environment overrides.
-func (s *Store) LoadEditable() (*config.Config, error) {
-	return config.LoadEditable(s.path)
+func (s *Store) LoadEditable() (*Config, error) {
+	return LoadEditable(s.path)
 }
 
 // Get returns the currently active config after environment overrides.
-func (s *Store) Get() config.Config {
+func (s *Store) Get() Config {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.current
 }
 
 // Save writes the config file and applies any hot-reloadable runtime changes.
-func (s *Store) Save(next config.Config) (*config.Config, error) {
+func (s *Store) Save(next Config) (*Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -52,11 +50,11 @@ func (s *Store) Save(next config.Config) (*config.Config, error) {
 		return nil, err
 	}
 
-	editable, err := config.LoadEditable(s.path)
+	editable, err := LoadEditable(s.path)
 	if err != nil {
 		return nil, err
 	}
-	active, err := config.Load(s.path)
+	active, err := Load(s.path)
 	if err != nil {
 		return nil, err
 	}

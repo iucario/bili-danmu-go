@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/iucario/bili-danmu-go/config"
+	"github.com/iucario/bili-danmu-go/internal/config"
 )
 
 // Run starts the HTTP server and blocks until SIGINT or SIGTERM.
@@ -28,12 +28,12 @@ func Run(cfg *config.Config, handler http.Handler, onShutdown func()) error {
 	defer cancelBase()
 
 	srv := &http.Server{
-		Addr:        addr,
-		Handler:     handler,
-		BaseContext: func(_ net.Listener) context.Context { return baseCtx },
-		ReadTimeout: 10 * time.Second,
+		Addr:         addr,
+		Handler:      handler,
+		BaseContext:  func(_ net.Listener) context.Context { return baseCtx },
+		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 0, // disabled — SSE connections are long-lived
-		IdleTimeout: 60 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
 
 	errCh := make(chan error, 1)

@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/iucario/bili-danmu-go/config"
-	"github.com/iucario/bili-danmu-go/internal/appconfig"
+	"github.com/iucario/bili-danmu-go/internal/config"
 )
 
 type sessdataPatchRequest struct {
@@ -17,7 +16,7 @@ type sessdataPatchRequest struct {
 //	GET /api/config   — export the current editable config file values
 //	POST /api/config  — import and save the full config
 //	PATCH /api/config — update only sessdata
-func NewConfigHandler(store *appconfig.Store) http.Handler {
+func NewConfigHandler(store *config.Store) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -38,7 +37,7 @@ func NewConfigHandler(store *appconfig.Store) http.Handler {
 	})
 }
 
-func handleGetConfig(w http.ResponseWriter, store *appconfig.Store) {
+func handleGetConfig(w http.ResponseWriter, store *config.Store) {
 	cfg, err := store.LoadEditable()
 	if err != nil {
 		http.Error(w, jsonError(err.Error()), http.StatusInternalServerError)
@@ -47,7 +46,7 @@ func handleGetConfig(w http.ResponseWriter, store *appconfig.Store) {
 	writeJSON(w, cfg)
 }
 
-func handlePostConfig(w http.ResponseWriter, r *http.Request, store *appconfig.Store) {
+func handlePostConfig(w http.ResponseWriter, r *http.Request, store *config.Store) {
 	var cfg config.Config
 	if err := decodeJSON(r, &cfg); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
@@ -65,7 +64,7 @@ func handlePostConfig(w http.ResponseWriter, r *http.Request, store *appconfig.S
 	writeJSON(w, stored)
 }
 
-func handlePatchConfig(w http.ResponseWriter, r *http.Request, store *appconfig.Store) {
+func handlePatchConfig(w http.ResponseWriter, r *http.Request, store *config.Store) {
 	var patch sessdataPatchRequest
 	if err := decodeJSON(r, &patch); err != nil {
 		http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
