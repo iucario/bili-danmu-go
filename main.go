@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/iucario/bili-danmu-go/api"
 	"github.com/iucario/bili-danmu-go/config"
+	"github.com/iucario/bili-danmu-go/internal/api"
 	"github.com/iucario/bili-danmu-go/internal/appconfig"
 	"github.com/iucario/bili-danmu-go/internal/chat"
 	"github.com/iucario/bili-danmu-go/internal/version"
@@ -21,7 +21,7 @@ import (
 	"github.com/iucario/bili-danmu-go/server"
 )
 
-//go:embed api/index.html
+//go:embed internal/api/index.html
 var indexFS embed.FS
 
 func defaultConfigPath() string {
