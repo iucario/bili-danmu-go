@@ -112,10 +112,8 @@ jobs:
             extra_ldflags: " -H windowsgui"
           - os: macos-latest
             goos: darwin
-            goarch: amd64
-          - os: macos-latest
-            goos: darwin
             goarch: arm64
+            cgo_enabled: "1"
 
     steps:
       - name: Checkout code
@@ -153,7 +151,7 @@ jobs:
         run: |
           EXT=${{ matrix.goos == 'windows' && '.exe' || '' }}
           BINARY=bili-danmu-${{ matrix.goos }}-${{ matrix.goarch }}${EXT}
-          GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+          CGO_ENABLED=${{ matrix.cgo_enabled || '0' }} GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
             go build -tags obs \
               -ldflags "-X 'github.com/iucario/bili-danmu-go/internal/version.Version=${{ steps.get_tag.outputs.tag }}'${{ matrix.extra_ldflags }}" \
               -o "${BINARY}"
