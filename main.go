@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"flag"
 	"fmt"
@@ -9,7 +10,11 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/iucario/bili-danmu-go/internal/api"
@@ -18,6 +23,8 @@ import (
 	"github.com/iucario/bili-danmu-go/internal/version"
 	"github.com/iucario/bili-danmu-go/pkg/bili"
 	"github.com/iucario/bili-danmu-go/server"
+
+	"fyne.io/systray"
 )
 
 //go:embed internal/api/index.html
@@ -75,12 +82,40 @@ func main() {
 
 	mux.Handle("GET /{$}", http.FileServer(http.FS(index)))
 
-	if err := server.Run(cfg, mux, rm.StopAll); err != nil {
-		slog.Error("server stopped with error", "err", err)
-		fmt.Fprintf(os.Stderr, "\nERROR: %v\n", err)
-		os.Exit(1)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Handle OS signals (Ctrl-C, SIGTERM) the same way as tray quit.
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+		<-sig
+		cancel()
+	}()
+
+	serverDone := make(chan struct{})
+
+	onReady := func() {
+		systray.SetTemplateIcon(trayIcon, trayIcon)
+		systray.SetTitle("Bili Danmu Go")
+		systray.SetTooltip("Bili Danmu Go")
+		addMenuItems(cfg, cancel)
+
+		go func() {
+			defer close(serverDone)
+			if err := server.Run(ctx, cfg, mux, rm.StopAll); err != nil {
+				slog.Error("server stopped with error", "err", err)
+				fmt.Fprintf(os.Stderr, "\nERROR: %v\n", err)
+			}
+			systray.Quit()
+		}()
 	}
-	slog.Info("goodbye")
+	onExit := func() {
+		cancel()
+		<-serverDone
+		slog.Info("goodbye")
+	}
+
+	systray.Run(onReady, onExit)
 }
 
 // bestEffortWriter silently discards write errors. Used to wrap os.Stderr so that a failed stderr write (e.g. on Windows GUI builds with no console) does not prevent writes to other io.MultiWriter targets.
@@ -126,4 +161,40 @@ func openLogFile(levelStr string) *os.File {
 
 	slog.Info("logging to file", "path", logPath)
 	return f
+}
+
+func addMenuItems(cfg *config.Config, cancel context.CancelFunc) {
+	addr := fmt.Sprintf("http://%s:%d/admin", cfg.Host, cfg.Port)
+
+	mURL := systray.AddMenuItem("Open in browser", addr)
+	systray.AddSeparator()
+	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
+
+	go func() {
+		for {
+			select {
+			case <-mURL.ClickedCh:
+				if err := openBrowser(addr); err != nil {
+					slog.Warn("failed to open browser", "err", err)
+				}
+			case <-mQuit.ClickedCh:
+				slog.Info("clicking quit")
+				cancel()
+			}
+		}
+	}()
+}
+
+func openBrowser(url string) error {
+	switch runtime.GOOS {
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		return exec.Command("open", url).Start()
+	default: // linux, etc.
+		if os.Getenv("WSL_DISTRO_NAME") != "" {
+			return exec.Command("explorer.exe", url).Start()
+		}
+		return exec.Command("xdg-open", url).Start()
+	}
 }
