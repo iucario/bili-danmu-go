@@ -11,22 +11,22 @@ import (
 
 // Config holds all runtime settings.
 type Config struct {
-	Host     string `json:"host"`
-	Port     int    `json:"port"`
-	LogLevel string `json:"logLevel"` // "debug", "info", "warn", "error"
-	SESSDATA string `json:"sessdata"` // Bilibili login cookie — enables full danmaku delivery
+	Host     string    `json:"host"`
+	Port     int       `json:"port"`
+	LogLevel string    `json:"logLevel"` // "debug", "info", "warn", "error"
+	SESSDATA string    `json:"sessdata"` // Bilibili login cookie — enables full danmaku delivery
+	RoomID   int64     `json:"roomId"`   // Bilibili live room ID shared by OBS overlay and TTS
 	TTS      TTSConfig `json:"tts"`
 }
 
 // TTSConfig holds Windows SAPI5 text-to-speech settings.
 type TTSConfig struct {
 	Enabled       bool   `json:"enabled"`
-	RoomID        int64  `json:"roomId"`
-	VoiceID       string `json:"voiceId"`       // SAPI5 voice ID substring, e.g. "ZH-CN"
-	Rate          int    `json:"rate"`           // [-10, 10]
-	Volume        int    `json:"volume"`         // [0, 100]
-	MaxQueue      int    `json:"maxQueue"`       // max normal-priority items in queue
-	MaxAgeSeconds int    `json:"maxAgeSeconds"`  // skip items older than this at speak time (0 = disabled)
+	VoiceID       string `json:"voiceId"`      // SAPI5 voice ID substring, e.g. "ZH-CN"
+	Rate          int    `json:"rate"`          // [-10, 10]
+	Volume        int    `json:"volume"`        // [0, 100]
+	MaxQueue      int    `json:"maxQueue"`      // max normal-priority items in queue
+	MaxAgeSeconds int    `json:"maxAgeSeconds"` // skip items older than this at speak time (0 = disabled)
 
 	TemplateText      string `json:"templateText"`
 	TemplateFreeGift  string `json:"templateFreeGift"`
@@ -74,11 +74,12 @@ level = info
 ; Your Bilibili SESSDATA cookie value (from browser DevTools → Application → Cookies).
 ; Without this, Bilibili only delivers a fraction of danmaku in busy rooms.
 ; sessdata =
+; room_id = 0
 
 [tts]
 ; Windows SAPI5 text-to-speech. Restart is not required — changes hot-reload.
+; Uses the room_id from the [bilibili] section.
 ; enabled = false
-; room_id = 0
 ; voice_id = ZH-CN
 ; rate = -2
 ; volume = 100
@@ -133,10 +134,10 @@ func load(path string, applyEnv bool) (*Config, error) {
 
 	b := f.Section("bilibili")
 	cfg.SESSDATA = b.Key("sessdata").MustString("")
+	cfg.RoomID = b.Key("room_id").MustInt64(cfg.RoomID)
 
 	t := f.Section("tts")
 	cfg.TTS.Enabled = t.Key("enabled").MustBool(cfg.TTS.Enabled)
-	cfg.TTS.RoomID = t.Key("room_id").MustInt64(cfg.TTS.RoomID)
 	cfg.TTS.VoiceID = t.Key("voice_id").MustString(cfg.TTS.VoiceID)
 	cfg.TTS.Rate = t.Key("rate").MustInt(cfg.TTS.Rate)
 	cfg.TTS.Volume = t.Key("volume").MustInt(cfg.TTS.Volume)
@@ -170,10 +171,10 @@ func (cfg *Config) Save(path string) error {
 	f.Section("server").Key("port").SetValue(fmt.Sprintf("%d", normalized.Port))
 	f.Section("log").Key("level").SetValue(normalized.LogLevel)
 	f.Section("bilibili").Key("sessdata").SetValue(normalized.SESSDATA)
+	f.Section("bilibili").Key("room_id").SetValue(fmt.Sprintf("%d", normalized.RoomID))
 
 	tt := f.Section("tts")
 	tt.Key("enabled").SetValue(fmt.Sprintf("%t", normalized.TTS.Enabled))
-	tt.Key("room_id").SetValue(fmt.Sprintf("%d", normalized.TTS.RoomID))
 	tt.Key("voice_id").SetValue(normalized.TTS.VoiceID)
 	tt.Key("rate").SetValue(fmt.Sprintf("%d", normalized.TTS.Rate))
 	tt.Key("volume").SetValue(fmt.Sprintf("%d", normalized.TTS.Volume))
@@ -204,8 +205,8 @@ func (cfg *Config) Validate() error {
 		return fmt.Errorf("log level must be one of debug, info, warn, error")
 	}
 	if normalized.TTS.Enabled {
-		if normalized.TTS.RoomID <= 0 {
-			return fmt.Errorf("tts.room_id must be a positive room ID when TTS is enabled")
+		if normalized.RoomID <= 0 {
+			return fmt.Errorf("bilibili.room_id must be set when TTS is enabled")
 		}
 		if normalized.TTS.Rate < -10 || normalized.TTS.Rate > 10 {
 			return fmt.Errorf("tts.rate must be between -10 and 10")

@@ -71,7 +71,7 @@ func main() {
 	// Create TTS service upfront (even if disabled) so hot-reload can enable it.
 	ttsCfg := cfg.TTS
 	ttsQueue := tts.NewTTSQueue(&ttsCfg)
-	ttsClient := tts.NewClient(fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port), &ttsCfg, ttsQueue)
+	ttsClient := tts.NewClient(fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port), cfg.RoomID, &ttsCfg, ttsQueue)
 
 	cs := config.New(*configPath, cfg, func(prev, next *config.Config) error {
 		if prev.SESSDATA != next.SESSDATA {
@@ -80,6 +80,9 @@ func main() {
 		// Hot-reload TTS config whenever it changes.
 		ttsQueue.UpdateConfig(next.TTS)
 		ttsClient.UpdateConfig(next.TTS)
+		if prev.RoomID != next.RoomID {
+			ttsClient.UpdateRoomID(next.RoomID)
+		}
 		return nil
 	})
 
@@ -119,11 +122,14 @@ func main() {
 			systray.Quit()
 		}()
 
-		// Start TTS goroutines if enabled; the queue goroutine owns SAPI5 COM.
-		if cfg.TTS.Enabled {
-			go ttsQueue.Run(ctx)
-			go ttsClient.Run(ctx)
-		}
+		// Always start TTS goroutines so hot-reload (enable via admin page) works.
+		// Each goroutine checks cfg.Enabled internally and idles when disabled.
+		slog.Info("tts: starting goroutines",
+			"enabled", cfg.TTS.Enabled,
+			"roomId", cfg.RoomID,
+			"voiceId", cfg.TTS.VoiceID)
+		go ttsQueue.Run(ctx)
+		go ttsClient.Run(ctx)
 	}
 	onExit := func() {
 		cancel()

@@ -21,6 +21,7 @@
 		port: number;
 		logLevel: string;
 		sessdata: string;
+		roomId: number;
 		tts: TTSConfig;
 	};
 
@@ -41,7 +42,6 @@
 
 	// TTS state
 	let ttsEnabled = $state(false);
-	let ttsRoomId = $state('');
 	let ttsVoiceId = $state('ZH-CN');
 	let ttsRate = $state(-2);
 	let ttsVolume = $state(100);
@@ -133,9 +133,9 @@
 					port: Number(backendPort),
 					logLevel: backendLogLevel,
 					sessdata: backendSessdata,
+					roomId: Number(roomId) || 0,
 					tts: {
 						enabled: ttsEnabled,
-						roomId: Number(ttsRoomId) || 0,
 						voiceId: ttsVoiceId,
 						rate: ttsRate,
 						volume: ttsVolume,
@@ -169,9 +169,9 @@
 		backendPort = String(data.port);
 		backendLogLevel = data.logLevel;
 		backendSessdata = data.sessdata;
+		if (data.roomId) roomId = String(data.roomId);
 		if (data.tts) {
 			ttsEnabled = data.tts.enabled;
-			ttsRoomId = String(data.tts.roomId ?? '');
 			ttsVoiceId = data.tts.voiceId ?? 'ZH-CN';
 			ttsRate = data.tts.rate ?? -2;
 			ttsVolume = data.tts.volume ?? 100;
@@ -193,39 +193,32 @@
 		ttsMessage = '';
 
 		try {
-			// Load current config first, then merge TTS changes.
-			const getResp = await fetch('/api/config');
-			const current = await getResp.json();
-			if (!getResp.ok) {
-				ttsError = current.error ?? '读取当前配置失败';
-				return;
-			}
-
-			const payload: BackendConfig = {
-				...current,
-				tts: {
-					enabled: ttsEnabled,
-					roomId: Number(ttsRoomId) || 0,
-					voiceId: ttsVoiceId,
-					rate: ttsRate,
-					volume: ttsVolume,
-					maxQueue: ttsMaxQueue,
-					maxAgeSeconds: ttsMaxAgeSeconds,
-					templateText: ttsTemplateText,
-					templateFreeGift: ttsTemplateFreeGift,
-					templatePaidGift: ttsTemplatePaidGift,
-					templateMember: ttsTemplateMember,
-					templateSuperChat: ttsTemplateSuperChat
-				}
-			};
-
-			const postResp = await fetch('/api/config', {
+			const response = await fetch('/api/config', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(payload)
+				body: JSON.stringify({
+					host: backendHost,
+					port: Number(backendPort),
+					logLevel: backendLogLevel,
+					sessdata: backendSessdata,
+					roomId: Number(roomId) || 0,
+					tts: {
+						enabled: ttsEnabled,
+						voiceId: ttsVoiceId,
+						rate: ttsRate,
+						volume: ttsVolume,
+						maxQueue: ttsMaxQueue,
+						maxAgeSeconds: ttsMaxAgeSeconds,
+						templateText: ttsTemplateText,
+						templateFreeGift: ttsTemplateFreeGift,
+						templatePaidGift: ttsTemplatePaidGift,
+						templateMember: ttsTemplateMember,
+						templateSuperChat: ttsTemplateSuperChat
+					}
+				})
 			});
-			const data = await postResp.json();
-			if (!postResp.ok) {
+			const data = await response.json();
+			if (!response.ok) {
 				ttsError = data.error ?? '保存失败';
 				return;
 			}
@@ -439,9 +432,10 @@
 		<div class="mx-auto max-w-2xl px-6 py-8">
 			<div class="mb-6 flex items-start justify-between gap-4">
 				<div>
-					<h2 class="secondary text-base font-semibold">语音播报（Windows TTS）</h2>
-					<p class="mt-2 text-sm text-[#888]">配置更改会立即热更新，无需重启。仅 Windows 有效。</p>
-				</div>
+				<h2 class="secondary text-base font-semibold">语音播报（Windows TTS）</h2>
+				<p class="mt-2 text-sm text-[#888]">配置更改会立即热更新，无需重启。仅 Windows 有效。</p>
+				<p class="mt-1 text-sm text-[#888]">使用「直播间设置」中的直播间号（当前：{roomId || '未设置'}）。</p>
+			</div>
 			</div>
 
 			{#if ttsError}
@@ -469,17 +463,6 @@
 				</label>
 
 				<div class="grid gap-5 md:grid-cols-2">
-					<div>
-						<label class="primary mb-1.5 block text-sm" for="ttsRoomId">直播间号</label>
-						<input
-							id="ttsRoomId"
-							type="number"
-							min="1"
-							placeholder="例如: 213"
-							bind:value={ttsRoomId}
-							class="bg-color w-full rounded border border-[#3a3a3a] px-3 py-2 text-sm text-white placeholder-[#666] focus:border-blue-500 focus:outline-none"
-						/>
-					</div>
 					<div>
 						<label class="primary mb-1.5 block text-sm" for="ttsVoiceId">语音 ID（关键字）</label>
 						<input

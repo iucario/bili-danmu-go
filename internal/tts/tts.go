@@ -2,7 +2,7 @@ package tts
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"regexp"
 	"runtime"
 	"strings"
@@ -104,10 +104,12 @@ func (q *TTSQueue) Enqueue(text string, priority Priority, timestamp int64) {
 	case PriorityHigh:
 		select {
 		case q.highCh <- entry:
+			slog.Debug("tts: enqueued high-priority", "text", truncate(text, 60))
 		default:
 			// Drop oldest high-priority item to make room.
 			select {
-			case <-q.highCh:
+			case dropped := <-q.highCh:
+				slog.Warn("tts: dropped oldest high-priority (queue full)", "text", truncate(dropped.text, 40))
 			default:
 			}
 			select {
@@ -118,10 +120,12 @@ func (q *TTSQueue) Enqueue(text string, priority Priority, timestamp int64) {
 	default:
 		select {
 		case q.normalCh <- entry:
+			slog.Debug("tts: enqueued normal", "text", truncate(text, 60))
 		default:
 			// Drop oldest normal item to make room for the new one.
 			select {
-			case <-q.normalCh:
+			case dropped := <-q.normalCh:
+				slog.Warn("tts: dropped oldest normal (queue full)", "text", truncate(dropped.text, 40), "cap", cap(q.normalCh))
 			default:
 			}
 			select {
@@ -134,14 +138,25 @@ func (q *TTSQueue) Enqueue(text string, priority Priority, timestamp int64) {
 
 // Run initializes COM/SAPI5 and processes the speech queue.
 // It must be called in its own goroutine and blocks until ctx is cancelled.
+// It idles (sleeping) until TTS is enabled, so hot-reload works correctly.
 func (q *TTSQueue) Run(ctx interface{ Done() <-chan struct{} }) {
+	slog.Info("tts: queue Run started, waiting for TTS to be enabled")
+	// Wait until TTS is enabled before initialising SAPI5.
+	for !q.cfgPtr.Load().Enabled {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(2 * time.Second):
+		}
+	}
+	slog.Info("tts: TTS enabled, initialising SAPI5")
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if err := ole.CoInitializeEx(0, ole.COINIT_MULTITHREADED); err != nil {
+	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
 		// S_FALSE (1) means COM was already initialized on this thread — that's OK.
 		if oleErr, ok := err.(*ole.OleError); !ok || oleErr.Code() != 1 {
-			log.Printf("tts: CoInitializeEx: %v", err)
+			slog.Error("tts: CoInitializeEx", "err", err)
 			return
 		}
 	}
@@ -149,14 +164,14 @@ func (q *TTSQueue) Run(ctx interface{ Done() <-chan struct{} }) {
 
 	unknown, err := oleutil.CreateObject("SAPI.SpVoice")
 	if err != nil {
-		log.Printf("tts: CreateObject SAPI.SpVoice: %v", err)
+		slog.Error("tts: CreateObject SAPI.SpVoice", "err", err)
 		return
 	}
 	defer unknown.Release()
 
 	voice, err := unknown.QueryInterface(ole.IID_IDispatch)
 	if err != nil {
-		log.Printf("tts: QueryInterface IDispatch: %v", err)
+		slog.Error("tts: QueryInterface IDispatch", "err", err)
 		return
 	}
 	defer voice.Release()
@@ -164,10 +179,10 @@ func (q *TTSQueue) Run(ctx interface{ Done() <-chan struct{} }) {
 	logAvailableVoices(voice)
 
 	if err := q.applyVoiceSettings(voice); err != nil {
-		log.Printf("tts: voice settings: %v", err)
+		slog.Warn("tts: voice settings", "err", err)
 	}
 
-	log.Println("tts: SAPI5 ready")
+	slog.Info("tts: SAPI5 ready")
 	q.loop(ctx, voice)
 }
 
@@ -175,7 +190,7 @@ func (q *TTSQueue) Run(ctx interface{ Done() <-chan struct{} }) {
 func logAvailableVoices(voice *ole.IDispatch) {
 	tokensVar, err := oleutil.CallMethod(voice, "GetVoices", "", "")
 	if err != nil {
-		log.Printf("tts: GetVoices for listing: %v", err)
+		slog.Warn("tts: GetVoices for listing", "err", err)
 		return
 	}
 	tokens := tokensVar.ToIDispatch()
@@ -190,7 +205,7 @@ func logAvailableVoices(voice *ole.IDispatch) {
 	}
 	count := int(countVar.Val)
 
-	log.Printf("tts: available voices (%d):", count)
+	slog.Debug("tts: available voices", "count", count)
 	for i := range count {
 		itemVar, err := oleutil.CallMethod(tokens, "Item", i)
 		if err != nil {
@@ -223,7 +238,7 @@ func logAvailableVoices(voice *ole.IDispatch) {
 			}
 		}
 
-		log.Printf("  id=%-80s  name=%s  lang=%s", id, name, lang)
+		slog.Debug("tts: voice", "id", id, "name", name, "lang", lang)
 		token.Release()
 	}
 }
@@ -242,7 +257,7 @@ func (q *TTSQueue) applyVoiceSettings(voice *ole.IDispatch) error {
 		voiceID = "ZH-CN" // default to Chinese
 	}
 	if err := q.selectVoiceByID(voice, voiceID); err != nil {
-		log.Printf("tts: could not set voice %q: %v (using default)", voiceID, err)
+		slog.Warn("tts: could not set voice, using default", "voiceId", voiceID, "err", err)
 	}
 	return nil
 }
@@ -295,7 +310,7 @@ func (q *TTSQueue) selectVoiceByID(voice *ole.IDispatch, idSubstr string) error 
 			if setErr != nil {
 				return fmt.Errorf("set Voice: %w", setErr)
 			}
-			log.Printf("tts: using voice %q", id)
+			slog.Info("tts: using voice", "id", id)
 			return nil
 		}
 		token.Release()
@@ -338,7 +353,7 @@ func (q *TTSQueue) selectVoiceByAttr(voice *ole.IDispatch, requiredAttrs string)
 	if _, err := oleutil.PutPropertyRef(voice, "Voice", token); err != nil {
 		return fmt.Errorf("set Voice: %w", err)
 	}
-	log.Printf("tts: using voice %q (attr filter: %s)", idVar.ToString(), requiredAttrs)
+	slog.Info("tts: using voice", "id", idVar.ToString(), "attrFilter", requiredAttrs)
 	return nil
 }
 
@@ -351,7 +366,7 @@ func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDis
 		select {
 		case <-q.reloadCh:
 			if err := q.applyVoiceSettings(voice); err != nil {
-				log.Printf("tts: reload voice settings: %v", err)
+				slog.Warn("tts: reload voice settings", "err", err)
 			}
 		default:
 		}
@@ -368,7 +383,7 @@ func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDis
 			case entry = <-q.normalCh:
 			case <-q.reloadCh:
 				if err := q.applyVoiceSettings(voice); err != nil {
-					log.Printf("tts: reload voice settings: %v", err)
+					slog.Warn("tts: reload voice settings", "err", err)
 				}
 				continue
 			case <-ctx.Done():
@@ -380,16 +395,17 @@ func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDis
 		if maxAge := q.cfgPtr.Load().MaxAgeSeconds; maxAge > 0 && entry.timestamp > 0 {
 			age := time.Now().Unix() - entry.timestamp
 			if age > int64(maxAge) {
-				log.Printf("tts: skipping stale message (age=%ds > max=%ds)", age, maxAge)
+				slog.Debug("tts: skipping stale message", "age_s", age, "max_s", maxAge, "text", truncate(entry.text, 40))
 				continue
 			}
 		}
 
+		slog.Info("tts: speaking", "text", truncate(entry.text, 80))
 		if _, err := oleutil.CallMethod(voice, "Speak", entry.text, svsfDefault); err != nil {
 			// Ignore "operation was cancelled" errors that can occur on shutdown.
 			code := windows.Errno(0)
 			if !strings.Contains(err.Error(), "0x80045002") {
-				log.Printf("tts: Speak: %v (code: %v)", err, code)
+				slog.Error("tts: Speak", "err", err, "code", code)
 			}
 		}
 	}
