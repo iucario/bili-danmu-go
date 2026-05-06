@@ -20,6 +20,7 @@ import (
 	"github.com/iucario/bili-danmu-go/internal/api"
 	"github.com/iucario/bili-danmu-go/internal/chat"
 	"github.com/iucario/bili-danmu-go/internal/config"
+	"github.com/iucario/bili-danmu-go/internal/tts"
 	"github.com/iucario/bili-danmu-go/internal/version"
 	"github.com/iucario/bili-danmu-go/pkg/bili"
 	"github.com/iucario/bili-danmu-go/server"
@@ -66,10 +67,19 @@ func main() {
 	bili.SetSESSDATA(cfg.SESSDATA)
 
 	rm := chat.NewRoomManager()
+
+	// Create TTS service upfront (even if disabled) so hot-reload can enable it.
+	ttsCfg := cfg.TTS
+	ttsQueue := tts.NewTTSQueue(&ttsCfg)
+	ttsClient := tts.NewClient(fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port), &ttsCfg, ttsQueue)
+
 	cs := config.New(*configPath, cfg, func(prev, next *config.Config) error {
 		if prev.SESSDATA != next.SESSDATA {
 			bili.SetSESSDATA(next.SESSDATA)
 		}
+		// Hot-reload TTS config whenever it changes.
+		ttsQueue.UpdateConfig(next.TTS)
+		ttsClient.UpdateConfig(next.TTS)
 		return nil
 	})
 
@@ -108,6 +118,12 @@ func main() {
 			}
 			systray.Quit()
 		}()
+
+		// Start TTS goroutines if enabled; the queue goroutine owns SAPI5 COM.
+		if cfg.TTS.Enabled {
+			go ttsQueue.Run(ctx)
+			go ttsClient.Run(ctx)
+		}
 	}
 	onExit := func() {
 		cancel()
