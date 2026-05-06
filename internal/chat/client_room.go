@@ -7,73 +7,92 @@ import (
 
 const subscriberBufSize = 64
 
-type subscriber struct {
-	ch   chan []byte
-	done <-chan struct{} // request context Done channel
-}
-
-// ClientRoom fan-outs pre-formatted SSE bytes to all active subscribers.
-type ClientRoom struct {
+// broadcaster is a generic fan-out channel. T is the message type.
+type broadcaster[T any] struct {
 	mu   sync.Mutex
-	subs []*subscriber
+	subs []*chanSub[T]
 }
 
-func NewClientRoom() *ClientRoom {
-	return &ClientRoom{}
+type chanSub[T any] struct {
+	ch   chan T
+	done <-chan struct{}
 }
 
-// Subscribe registers a new subscriber. The returned channel receives SSE frames.
-// The caller must call the returned unsubscribe func when done.
-func (r *ClientRoom) Subscribe(done <-chan struct{}) (<-chan []byte, func()) {
-	sub := &subscriber{
-		ch:   make(chan []byte, subscriberBufSize),
+func (b *broadcaster[T]) subscribe(done <-chan struct{}) (<-chan T, func()) {
+	s := &chanSub[T]{
+		ch:   make(chan T, subscriberBufSize),
 		done: done,
 	}
-	r.mu.Lock()
-	r.subs = append(r.subs, sub)
-	r.mu.Unlock()
+	b.mu.Lock()
+	b.subs = append(b.subs, s)
+	b.mu.Unlock()
 
-	unsub := func() {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		for i, s := range r.subs {
-			if s == sub {
-				r.subs = append(r.subs[:i], r.subs[i+1:]...)
+	return s.ch, func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		for i, x := range b.subs {
+			if x == s {
+				b.subs = append(b.subs[:i], b.subs[i+1:]...)
 				break
 			}
 		}
 	}
-	return sub.ch, unsub
 }
 
-// Broadcast sends data to all subscribers. Slow subscribers whose buffers are
-// full are dropped with a warning.
-func (r *ClientRoom) Broadcast(data []byte) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (b *broadcaster[T]) broadcast(v T, warnTag string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-	live := r.subs[:0]
-	for _, s := range r.subs {
+	live := b.subs[:0]
+	for _, s := range b.subs {
 		select {
 		case <-s.done:
-			// Context cancelled; drop silently.
 			continue
 		default:
 		}
-
 		select {
-		case s.ch <- data:
+		case s.ch <- v:
 			live = append(live, s)
 		default:
-			slog.Warn("chat: dropping slow subscriber")
+			slog.Warn("chat: dropping slow subscriber", "tag", warnTag)
 		}
 	}
-	r.subs = live
+	b.subs = live
 }
 
-// Len returns the current subscriber count.
-func (r *ClientRoom) Len() int {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return len(r.subs)
+func (b *broadcaster[T]) len() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.subs)
 }
+
+// ClientRoom fan-outs pre-formatted SSE bytes and typed ChatEvents to all active subscribers.
+type ClientRoom struct {
+	sse    broadcaster[[]byte]
+	events broadcaster[ChatEvent]
+}
+
+func NewClientRoom() *ClientRoom { return &ClientRoom{} }
+
+// Subscribe registers an SSE-bytes subscriber. Call the returned func to unsubscribe.
+func (r *ClientRoom) Subscribe(done <-chan struct{}) (<-chan []byte, func()) {
+	return r.sse.subscribe(done)
+}
+
+// SubscribeEvents registers an in-process typed event subscriber. Call the returned func to unsubscribe.
+func (r *ClientRoom) SubscribeEvents(done <-chan struct{}) (<-chan ChatEvent, func()) {
+	return r.events.subscribe(done)
+}
+
+// Broadcast sends raw SSE bytes to all SSE subscribers.
+func (r *ClientRoom) Broadcast(data []byte) {
+	r.sse.broadcast(data, "sse")
+}
+
+// BroadcastEvent sends a typed ChatEvent to all in-process event subscribers.
+func (r *ClientRoom) BroadcastEvent(ev ChatEvent) {
+	r.events.broadcast(ev, "event")
+}
+
+// Len returns the current SSE subscriber count.
+func (r *ClientRoom) Len() int { return r.sse.len() }

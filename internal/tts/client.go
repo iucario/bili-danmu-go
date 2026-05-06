@@ -1,13 +1,9 @@
 package tts
 
 import (
-	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -15,34 +11,38 @@ import (
 	"github.com/iucario/bili-danmu-go/internal/chat"
 )
 
-// Client subscribes to the local SSE chat stream and dispatches TTS events.
+// Client subscribes to the in-process chat event stream and dispatches TTS events.
+// No HTTP or SSE parsing — events are delivered via a Go channel directly from the broadcaster.
 type Client struct {
-	baseURL string // e.g. "http://127.0.0.1:5090"
-	roomID  atomic.Int64
-	cfgPtr  atomic.Pointer[Config]
-	queue   *TTSQueue
-	// cancelConn holds the cancel func for the current SSE connection so that
-	// UpdateRoomID can force an immediate reconnect with the new room ID.
+	rm     *chat.RoomManager
+	roomID atomic.Int64
+	cfgPtr atomic.Pointer[Config]
+	queue  *TTSQueue
+	// cancelConn cancels the current room subscription so UpdateRoomID can
+	// force an immediate resubscription with the new room ID.
 	cancelConn atomic.Pointer[context.CancelFunc]
 }
 
-// NewClient creates a Client that will connect to the given server base URL.
-func NewClient(baseURL string, roomID int64, cfg *Config, queue *TTSQueue) *Client {
-	c := &Client{
-		baseURL: baseURL,
-		queue:   queue,
-	}
+// NewClient creates a Client backed by the given RoomManager.
+func NewClient(rm *chat.RoomManager, roomID int64, cfg *Config, queue *TTSQueue) *Client {
+	c := &Client{rm: rm, queue: queue}
 	c.roomID.Store(roomID)
 	c.cfgPtr.Store(cfg)
 	return c
 }
 
-// UpdateConfig atomically replaces the running config (templates, etc.).
+// UpdateConfig atomically replaces the running config.
+// If TTS is being disabled, the current subscription is cancelled immediately.
 func (c *Client) UpdateConfig(cfg Config) {
-	c.cfgPtr.Store(&cfg)
+	prev := c.cfgPtr.Swap(&cfg)
+	if prev != nil && prev.Enabled && !cfg.Enabled {
+		if fn := c.cancelConn.Load(); fn != nil {
+			(*fn)()
+		}
+	}
 }
 
-// UpdateRoomID changes the subscribed room and reconnects immediately.
+// UpdateRoomID changes the subscribed room and resubscribes immediately.
 func (c *Client) UpdateRoomID(id int64) {
 	c.roomID.Store(id)
 	if fn := c.cancelConn.Load(); fn != nil {
@@ -50,20 +50,14 @@ func (c *Client) UpdateRoomID(id int64) {
 	}
 }
 
-// Run subscribes to the SSE stream and processes events, reconnecting on failure.
+// Run subscribes to room events and dispatches them to the TTS queue.
 // It blocks until ctx is cancelled.
 func (c *Client) Run(ctx context.Context) {
 	slog.Info("tts/client: Run started")
-	const (
-		initialBackoff = time.Second
-		maxBackoff     = 30 * time.Second
-		disabledSleep  = 2 * time.Second
-	)
-	backoff := initialBackoff
+	const disabledSleep = 2 * time.Second
 
 	for {
 		if !c.cfgPtr.Load().Enabled {
-			slog.Info("tts/client: TTS disabled, waiting...")
 			select {
 			case <-ctx.Done():
 				return
@@ -72,130 +66,69 @@ func (c *Client) Run(ctx context.Context) {
 			}
 		}
 
-		connected, err := c.runOnce(ctx)
-		if ctx.Err() != nil {
-			return
-		}
-		if err != nil {
-			slog.Error("tts/client: connection error", "err", err)
-		}
-		if connected {
-			backoff = initialBackoff
-		} else {
-			backoff *= 2
-			if backoff > maxBackoff {
-				backoff = maxBackoff
+		roomID := c.roomID.Load()
+		if roomID <= 0 {
+			slog.Warn("tts/client: room ID not set, waiting for config")
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(disabledSleep):
+				continue
 			}
 		}
 
+		subCtx, cancel := context.WithCancel(ctx)
+		c.cancelConn.Store(&cancel)
+
+		events, unsub := c.rm.SubscribeEvents(subCtx, roomID)
+		slog.Info("tts/client: subscribed to room events", "roomId", roomID)
+
+		c.processEvents(subCtx, events)
+
+		unsub()
+		cancel()
+		c.cancelConn.Store(nil)
+
+		if ctx.Err() != nil {
+			return
+		}
+	}
+}
+
+// processEvents reads from the event channel until ctx is cancelled or TTS is disabled.
+func (c *Client) processEvents(ctx context.Context, events <-chan chat.ChatEvent) {
+	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(backoff):
-		}
-	}
-}
-
-// runOnce opens an SSE connection and reads until it closes or ctx is done.
-// Returns (true, err) if the HTTP request succeeded, (false, err) on dial failure.
-func (c *Client) runOnce(ctx context.Context) (connected bool, _ error) {
-	connCtx, cancel := context.WithCancel(ctx)
-	c.cancelConn.Store(&cancel)
-	defer func() {
-		cancel()
-		c.cancelConn.Store(nil)
-	}()
-
-	roomID := c.roomID.Load()
-	if roomID <= 0 {
-		return false, fmt.Errorf("room ID not set, waiting for config")
-	}
-	url := fmt.Sprintf("%s/api/chat/stream?roomId=%d", c.baseURL, roomID)
-
-	req, err := http.NewRequestWithContext(connCtx, http.MethodGet, url, nil)
-	if err != nil {
-		return false, fmt.Errorf("build request: %w", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Cache-Control", "no-cache")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("connect %s: %w", url, err)
-	}
-	defer resp.Body.Close() //nolint:errcheck
-
-	if resp.StatusCode != http.StatusOK {
-		return true, fmt.Errorf("unexpected status %d from %s", resp.StatusCode, url)
-	}
-
-	slog.Debug("tts/client: connecting to SSE stream", "roomId", roomID, "url", url)
-	slog.Info("tts/client: connected to SSE stream", "roomId", roomID)
-	return true, c.readLoop(connCtx, resp)
-}
-
-// readLoop parses the SSE text/event-stream from resp and dispatches events.
-func (c *Client) readLoop(ctx context.Context, resp *http.Response) error {
-	scanner := bufio.NewScanner(resp.Body)
-
-	var eventName string
-	var dataLines [][]byte
-
-	for scanner.Scan() {
-		if ctx.Err() != nil {
-			return nil
-		}
-		line := scanner.Bytes()
-
-		switch {
-		case bytes.HasPrefix(line, []byte("event:")):
-			eventName = string(bytes.TrimSpace(line[6:]))
-		case bytes.HasPrefix(line, []byte("data:")):
-			dataLines = append(dataLines, bytes.TrimSpace(line[5:]))
-		case len(line) == 0:
-			// Empty line = end of event block.
-			if eventName != "" && len(dataLines) > 0 {
-				data := bytes.Join(dataLines, nil)
-				c.dispatch(eventName, data)
+		case ev, ok := <-events:
+			if !ok {
+				return
 			}
-			eventName = ""
-			dataLines = dataLines[:0]
+			if !c.cfgPtr.Load().Enabled {
+				return
+			}
+			c.dispatch(ev)
 		}
 	}
-
-	if err := scanner.Err(); err != nil {
-		if ctx.Err() != nil {
-			return nil
-		}
-		return fmt.Errorf("read SSE: %w", err)
-	}
-	return nil
 }
 
-func (c *Client) dispatch(event string, data []byte) {
-	slog.Debug("tts/client: received event", "event", event, "data", truncate(string(data), 120))
-	switch event {
+func (c *Client) dispatch(ev chat.ChatEvent) {
+	slog.Debug("tts/client: received event", "type", ev.Type)
+	switch ev.Type {
 	case "add_text":
-		c.handleText(data)
+		c.handleText(ev.Text)
 	case "add_gift":
-		c.handleGift(data)
+		c.handleGift(ev.Gift)
 	case "add_member":
-		c.handleMember(data)
+		c.handleMember(ev.Member)
 	case "add_super_chat":
-		c.handleSuperChat(data)
+		c.handleSuperChat(ev.SuperChat)
 	}
 }
 
-func (c *Client) handleText(data []byte) {
-	var ev chat.AddTextEvent
-	if err := json.Unmarshal(data, &ev); err != nil {
-		slog.Error("tts/client: unmarshal add_text", "err", err)
-		return
-	}
-	if ev.IsGiftDanmaku || ev.ContentType != 0 {
-		return
-	}
-	if ev.Content == "" {
+func (c *Client) handleText(ev *chat.AddTextEvent) {
+	if ev.IsGiftDanmaku || ev.ContentType != 0 || ev.Content == "" {
 		return
 	}
 	text := applyTemplate(c.cfgPtr.Load().TemplateText, map[string]string{
@@ -206,13 +139,7 @@ func (c *Client) handleText(data []byte) {
 	c.queue.Enqueue(text, PriorityNormal, ev.Timestamp)
 }
 
-func (c *Client) handleGift(data []byte) {
-	var ev chat.AddGiftEvent
-	if err := json.Unmarshal(data, &ev); err != nil {
-		slog.Error("tts/client: unmarshal add_gift", "err", err)
-		return
-	}
-
+func (c *Client) handleGift(ev *chat.AddGiftEvent) {
 	cfg := c.cfgPtr.Load()
 	if ev.TotalCoin > 0 {
 		price := float64(ev.TotalCoin) / 1000.0
@@ -239,18 +166,11 @@ var guardNames = map[int]string{
 	3: "舰长",
 }
 
-func (c *Client) handleMember(data []byte) {
-	var ev chat.AddMemberEvent
-	if err := json.Unmarshal(data, &ev); err != nil {
-		slog.Error("tts/client: unmarshal add_member", "err", err)
-		return
-	}
-
+func (c *Client) handleMember(ev *chat.AddMemberEvent) {
 	guardName := guardNames[ev.PrivilegeType]
 	if guardName == "" {
 		guardName = "舰长"
 	}
-
 	text := applyTemplate(c.cfgPtr.Load().TemplateMember, map[string]string{
 		"author_name": ev.AuthorName,
 		"guard_name":  guardName,
@@ -258,13 +178,7 @@ func (c *Client) handleMember(data []byte) {
 	c.queue.Enqueue(text, PriorityHigh, ev.Timestamp)
 }
 
-func (c *Client) handleSuperChat(data []byte) {
-	var ev chat.AddSuperChatEvent
-	if err := json.Unmarshal(data, &ev); err != nil {
-		slog.Error("tts/client: unmarshal add_super_chat", "err", err)
-		return
-	}
-
+func (c *Client) handleSuperChat(ev *chat.AddSuperChatEvent) {
 	text := applyTemplate(c.cfgPtr.Load().TemplateSuperChat, map[string]string{
 		"author_name": ev.AuthorName,
 		"price":       strconv.Itoa(ev.Price),

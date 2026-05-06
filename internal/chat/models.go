@@ -87,6 +87,31 @@ type DelSuperChatEvent struct {
 	IDs []string `json:"ids"`
 }
 
+// ChatEvent is a typed in-process event emitted by a room.
+// Exactly one pointer field is non-nil, identified by Type.
+type ChatEvent struct {
+	Type      string             // "add_text" | "add_gift" | "add_member" | "add_super_chat"
+	Text      *AddTextEvent
+	Gift      *AddGiftEvent
+	Member    *AddMemberEvent
+	SuperChat *AddSuperChatEvent
+}
+
+// payload returns the non-nil event struct for JSON marshaling.
+func (e ChatEvent) payload() any {
+	switch e.Type {
+	case "add_text":
+		return e.Text
+	case "add_gift":
+		return e.Gift
+	case "add_member":
+		return e.Member
+	case "add_super_chat":
+		return e.SuperChat
+	}
+	return nil
+}
+
 // FatalErrorEvent is sent when the Bilibili connection is unrecoverable.
 type FatalErrorEvent struct {
 	Type string `json:"type"`

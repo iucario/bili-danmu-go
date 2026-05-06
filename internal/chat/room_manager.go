@@ -30,6 +30,41 @@ func NewRoomManager() *RoomManager {
 	return &RoomManager{rooms: make(map[int64]*managedRoom)}
 }
 
+// SubscribeEvents attaches ctx to a room for in-process typed event delivery,
+// starting the room if necessary. Returns a channel of ChatEvents and an unsubscribe func.
+func (m *RoomManager) SubscribeEvents(ctx context.Context, roomID int64) (<-chan ChatEvent, func()) {
+	m.mu.Lock()
+
+	r, exists := m.rooms[roomID]
+	if !exists {
+		r = m.startRoom(roomID)
+	} else if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
+	}
+	r.nSubs++
+
+	ch, unsub := r.room.SubscribeEvents(ctx.Done())
+	m.mu.Unlock()
+
+	return ch, func() {
+		unsub()
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		r2, ok := m.rooms[roomID]
+		if !ok {
+			return
+		}
+		r2.nSubs--
+		if r2.nSubs <= 0 {
+			r2.nSubs = 0
+			r2.timer = time.AfterFunc(teardownDelay, func() {
+				m.teardown(roomID)
+			})
+		}
+	}
+}
+
 // Subscribe attaches ctx to a room, starting it if necessary.
 // Returns a channel of pre-formatted SSE frames and an unsubscribe func.
 // The caller must call unsubscribe when the request context is done.

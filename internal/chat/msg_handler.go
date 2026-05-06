@@ -28,7 +28,7 @@ func startEventLoop(client bili.Client, room *ClientRoom, onFatal func()) {
 			}
 		}
 		if err := client.Err(); err != nil {
-			broadcastEvent(room, "fatal_error", FatalErrorEvent{
+			broadcastSSE(room, "fatal_error", FatalErrorEvent{
 				Type: "too_many_retries",
 				Msg:  "The connection has been lost too many times",
 			})
@@ -83,7 +83,7 @@ func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUI
 		}
 	}
 
-	broadcastEvent(room, "add_text", AddTextEvent{
+	ev := AddTextEvent{
 		ID:                newID(),
 		Timestamp:         info.Timestamp,
 		AuthorName:        info.Uname,
@@ -102,7 +102,8 @@ func handleDanmaku(info *bili.DanmakuInfo, room *ClientRoom, realRoomID, ownerUI
 		ContentType:       contentType,
 		ContentTypeParams: contentTypeParams,
 		IsMirror:          info.IsMirror,
-	})
+	}
+	broadcastEvent(room, ChatEvent{Type: "add_text", Text: &ev})
 }
 
 func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID int64) {
@@ -119,7 +120,7 @@ func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID int64) {
 		medalName = data.MedalInfo.MedalName
 	}
 
-	broadcastEvent(room, "add_gift",AddGiftEvent{
+	giftEv := AddGiftEvent{
 		ID:            newID(),
 		Timestamp:     data.Timestamp,
 		AuthorName:    data.Uname,
@@ -134,7 +135,8 @@ func handleGift(data *bili.GiftData, room *ClientRoom, realRoomID int64) {
 		PrivilegeType: data.GuardLevel,
 		MedalLevel:    medalLevel,
 		MedalName:     medalName,
-	})
+	}
+	broadcastEvent(room, ChatEvent{Type: "add_gift", Gift: &giftEv})
 }
 
 func handleUserToastV2(data *bili.UserToastV2Data, room *ClientRoom) {
@@ -142,7 +144,7 @@ func handleUserToastV2(data *bili.UserToastV2Data, room *ClientRoom) {
 	if data.Option.Source == 2 {
 		return
 	}
-	broadcastEvent(room, "add_member", AddMemberEvent{
+	memberEv := AddMemberEvent{
 		ID:            newID(),
 		Timestamp:     data.GuardInfo.StartTime,
 		AuthorName:    data.SenderUinfo.Base.Name,
@@ -152,7 +154,8 @@ func handleUserToastV2(data *bili.UserToastV2Data, room *ClientRoom) {
 		Num:           data.PayInfo.Num,
 		Unit:          data.PayInfo.Unit,
 		TotalCoin:     data.PayInfo.Price * data.PayInfo.Num,
-	})
+	}
+	broadcastEvent(room, ChatEvent{Type: "add_member", Member: &memberEv})
 }
 
 func handleSuperChat(data *bili.SuperChatData, room *ClientRoom, realRoomID int64) {
@@ -161,7 +164,7 @@ func handleSuperChat(data *bili.SuperChatData, room *ClientRoom, realRoomID int6
 		medalLevel = data.MedalInfo.MedalLevel
 		medalName = data.MedalInfo.MedalName
 	}
-	broadcastEvent(room, "add_super_chat", AddSuperChatEvent{
+	scEv := AddSuperChatEvent{
 		ID:            newID(),
 		Timestamp:     data.StartTime,
 		AuthorName:    data.UserInfo.Uname,
@@ -173,7 +176,8 @@ func handleSuperChat(data *bili.SuperChatData, room *ClientRoom, realRoomID int6
 		PrivilegeType: data.UserInfo.GuardLevel,
 		MedalLevel:    medalLevel,
 		MedalName:     medalName,
-	})
+	}
+	broadcastEvent(room, ChatEvent{Type: "add_super_chat", SuperChat: &scEv})
 }
 
 func handleSuperChatDelete(data *bili.SuperChatDeleteData, room *ClientRoom) {
@@ -181,7 +185,7 @@ func handleSuperChatDelete(data *bili.SuperChatDeleteData, room *ClientRoom) {
 	for i, id := range data.IDs {
 		ids[i] = strconv.FormatInt(id, 10)
 	}
-	broadcastEvent(room, "del_super_chat", DelSuperChatEvent{IDs: ids})
+	broadcastSSE(room, "del_super_chat", DelSuperChatEvent{IDs: ids})
 }
 
 func authorType(info *bili.DanmakuInfo, ownerUID int64) int {
@@ -214,7 +218,18 @@ func avatarFromModeInfo(raw []byte) string {
 	return mi.User.Base.Face
 }
 
-func broadcastEvent(room *ClientRoom, eventName string, data any) {
+func broadcastEvent(room *ClientRoom, ev ChatEvent) {
+	room.BroadcastEvent(ev)
+	b, err := json.Marshal(ev.payload())
+	if err != nil {
+		slog.Warn("chat: marshal event", "event", ev.Type, "err", err)
+		return
+	}
+	room.Broadcast(fmt.Appendf(nil, "event: %s\ndata: %s\n\n", ev.Type, b))
+}
+
+// broadcastSSE sends a raw SSE-only event (no in-process typed delivery).
+func broadcastSSE(room *ClientRoom, eventName string, data any) {
 	b, err := json.Marshal(data)
 	if err != nil {
 		slog.Warn("chat: marshal event", "event", eventName, "err", err)

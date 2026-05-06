@@ -14,6 +14,20 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// rePunctuation matches punctuation we handle specially.
+var rePunctuation = regexp.MustCompile(`[?？!！]+`)
+
+// rePronounceable matches any letter or digit (anything SAPI5 can speak).
+var rePronounceable = regexp.MustCompile(`[\p{L}\p{N}]`)
+
+// punctuationSpoken maps standalone punctuation to its spoken form.
+var punctuationSpoken = strings.NewReplacer(
+	"?", "问号",
+	"？", "问号",
+	"!", "感叹号",
+	"！", "感叹号",
+)
+
 // reCustomEmoji matches Bilibili-style custom emojis like [爱心] or [xxx].
 var reCustomEmoji = regexp.MustCompile(`\[[^\]]+\]`)
 
@@ -37,10 +51,21 @@ var reUnicodeEmoji = regexp.MustCompile(
 )
 
 // sanitize removes emojis and custom emoji tokens from text before TTS.
+// Punctuation is dropped when real words are present; when the message is
+// punctuation-only, it is replaced with its spoken form so SAPI5 reads it.
 func sanitize(text string) string {
 	text = reCustomEmoji.ReplaceAllString(text, "")
 	text = reUnicodeEmoji.ReplaceAllString(text, "")
-	return strings.TrimSpace(text)
+	text = strings.TrimSpace(text)
+
+	// Strip punctuation and check whether anything pronounceable remains.
+	withoutPunct := rePunctuation.ReplaceAllString(text, "")
+	if rePronounceable.MatchString(withoutPunct) {
+		// Real words present — drop punctuation silently.
+		return strings.TrimSpace(withoutPunct)
+	}
+	// Punctuation-only message — replace with spoken words.
+	return punctuationSpoken.Replace(text)
 }
 
 // Priority determines speech ordering in the queue.
@@ -65,7 +90,7 @@ type TTSQueue struct {
 	highCh   chan queueEntry
 	normalCh chan queueEntry
 	cfgPtr   atomic.Pointer[Config] // hot-reloadable; always non-nil
-	reloadCh chan struct{}           // signals the SAPI5 goroutine to re-apply voice settings
+	reloadCh chan struct{}          // signals the SAPI5 goroutine to re-apply voice settings
 }
 
 // NewTTSQueue creates a queue with the given config.
@@ -138,52 +163,67 @@ func (q *TTSQueue) Enqueue(text string, priority Priority, timestamp int64) {
 
 // Run initializes COM/SAPI5 and processes the speech queue.
 // It must be called in its own goroutine and blocks until ctx is cancelled.
-// It idles (sleeping) until TTS is enabled, so hot-reload works correctly.
+// It supports hot-reload: disabling pauses it; re-enabling resumes without restart.
 func (q *TTSQueue) Run(ctx interface{ Done() <-chan struct{} }) {
-	slog.Info("tts: queue Run started, waiting for TTS to be enabled")
-	// Wait until TTS is enabled before initialising SAPI5.
-	for !q.cfgPtr.Load().Enabled {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(2 * time.Second):
-		}
-	}
-	slog.Info("tts: TTS enabled, initialising SAPI5")
+	slog.Info("tts: queue goroutine started")
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
-	if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
-		// S_FALSE (1) means COM was already initialized on this thread — that's OK.
-		if oleErr, ok := err.(*ole.OleError); !ok || oleErr.Code() != 1 {
-			slog.Error("tts: CoInitializeEx", "err", err)
+	for {
+		// Wait until TTS is enabled (or re-enabled after disable).
+		for !q.cfgPtr.Load().Enabled {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(2 * time.Second):
+			}
+		}
+		slog.Info("tts: TTS enabled, initialising SAPI5")
+
+		if err := ole.CoInitializeEx(0, ole.COINIT_APARTMENTTHREADED); err != nil {
+			// S_FALSE (1) means COM was already initialized on this thread — that's OK.
+			if oleErr, ok := err.(*ole.OleError); !ok || oleErr.Code() != 1 {
+				slog.Error("tts: CoInitializeEx", "err", err)
+				return
+			}
+		}
+
+		unknown, err := oleutil.CreateObject("SAPI.SpVoice")
+		if err != nil {
+			slog.Error("tts: CreateObject SAPI.SpVoice", "err", err)
+			ole.CoUninitialize()
 			return
 		}
+
+		voice, err := unknown.QueryInterface(ole.IID_IDispatch)
+		if err != nil {
+			slog.Error("tts: QueryInterface IDispatch", "err", err)
+			unknown.Release()
+			ole.CoUninitialize()
+			return
+		}
+
+		logAvailableVoices(voice)
+		if err := q.applyVoiceSettings(voice); err != nil {
+			slog.Warn("tts: voice settings", "err", err)
+		}
+
+		slog.Info("tts: SAPI5 ready")
+		q.loop(ctx, voice) // returns when ctx done OR disabled
+
+		voice.Release()
+		unknown.Release()
+		ole.CoUninitialize()
+
+		if ctx.Done() != nil {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+		}
+		slog.Info("tts: TTS disabled, waiting for re-enable")
 	}
-	defer ole.CoUninitialize()
-
-	unknown, err := oleutil.CreateObject("SAPI.SpVoice")
-	if err != nil {
-		slog.Error("tts: CreateObject SAPI.SpVoice", "err", err)
-		return
-	}
-	defer unknown.Release()
-
-	voice, err := unknown.QueryInterface(ole.IID_IDispatch)
-	if err != nil {
-		slog.Error("tts: QueryInterface IDispatch", "err", err)
-		return
-	}
-	defer voice.Release()
-
-	logAvailableVoices(voice)
-
-	if err := q.applyVoiceSettings(voice); err != nil {
-		slog.Warn("tts: voice settings", "err", err)
-	}
-
-	slog.Info("tts: SAPI5 ready")
-	q.loop(ctx, voice)
 }
 
 // logAvailableVoices prints all installed SAPI5 voices in a human-readable format.
@@ -358,13 +398,17 @@ func (q *TTSQueue) selectVoiceByAttr(voice *ole.IDispatch, requiredAttrs string)
 }
 
 // loop is the main speech dispatch loop, preferring high-priority items.
+// Returns when ctx is cancelled OR TTS is disabled via config reload.
 // If max_age_seconds > 0, entries older than that threshold are skipped silently.
-// It also listens on reloadCh to re-apply voice settings after a config update.
 func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDispatch) {
 	for {
 		// Check for a pending config reload first (non-blocking).
 		select {
 		case <-q.reloadCh:
+			if !q.cfgPtr.Load().Enabled {
+				slog.Info("tts: disabled via config, stopping SAPI5")
+				return
+			}
 			if err := q.applyVoiceSettings(voice); err != nil {
 				slog.Warn("tts: reload voice settings", "err", err)
 			}
@@ -382,6 +426,10 @@ func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDis
 			case entry = <-q.highCh:
 			case entry = <-q.normalCh:
 			case <-q.reloadCh:
+				if !q.cfgPtr.Load().Enabled {
+					slog.Info("tts: disabled via config, stopping SAPI5")
+					return
+				}
 				if err := q.applyVoiceSettings(voice); err != nil {
 					slog.Warn("tts: reload voice settings", "err", err)
 				}
@@ -400,7 +448,7 @@ func (q *TTSQueue) loop(ctx interface{ Done() <-chan struct{} }, voice *ole.IDis
 			}
 		}
 
-		slog.Info("tts: speaking", "text", truncate(entry.text, 80))
+		slog.Debug("tts: speaking", "text", truncate(entry.text, 80))
 		if _, err := oleutil.CallMethod(voice, "Speak", entry.text, svsfDefault); err != nil {
 			// Ignore "operation was cancelled" errors that can occur on shutdown.
 			code := windows.Errno(0)

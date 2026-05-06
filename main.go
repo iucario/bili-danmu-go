@@ -71,7 +71,7 @@ func main() {
 	// Create TTS service upfront (even if disabled) so hot-reload can enable it.
 	ttsCfg := cfg.TTS
 	ttsQueue := tts.NewTTSQueue(&ttsCfg)
-	ttsClient := tts.NewClient(fmt.Sprintf("http://%s:%d", cfg.Host, cfg.Port), cfg.RoomID, &ttsCfg, ttsQueue)
+	ttsClient := tts.NewClient(rm, cfg.RoomID, &ttsCfg, ttsQueue)
 
 	cs := config.New(*configPath, cfg, func(prev, next *config.Config) error {
 		if prev.SESSDATA != next.SESSDATA {
