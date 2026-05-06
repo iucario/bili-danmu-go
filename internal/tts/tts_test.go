@@ -12,6 +12,7 @@ func TestSanitize(t *testing.T) {
 	}{
 		// Punctuation-only → spoken form
 		{name: "ascii question mark alone", input: "?", want: "问号"},
+		{name: "ascii question mark spaces", input: "  ?  ", want: "问号"},
 		{name: "full-width question mark alone", input: "？", want: "问号"},
 		{name: "multiple question marks", input: "???", want: "问号问号问号"},
 		{name: "ascii exclamation alone", input: "!", want: "感叹号"},
